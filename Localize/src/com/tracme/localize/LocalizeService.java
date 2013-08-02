@@ -61,9 +61,7 @@ public class LocalizeService extends IntentService {
 	/*** END ****/
 	
 	/**
-	 * Nested class for Receiving WiFi scan results from the WifiManager.
-	 * When a scan is finished and received, the results are stored in a double array
-	 * (rssis)
+	 * Class for Receiving WiFi scan results from the WifiManager
 	 * 
 	 * @author Kwaku Farkye
 	 *
@@ -98,7 +96,7 @@ public class LocalizeService extends IntentService {
 		super("LocalizeService");
 	}
 	
-	protected void setRSSIArrayValue(int apID, int rssival)
+	public void setRSSIArrayValue(int apID, int rssival)
 	{
 		// Since the access point IDs in the table start at 1, we must decrement the array id by 1
 		int arrayID = apID - 1;
@@ -113,7 +111,6 @@ public class LocalizeService extends IntentService {
 	@Override
 	protected void onHandleIntent(Intent intent)
 	{
-		String str = intent.getStringExtra("PATH");
 		// Recreate the objects that were passed in the intent
 		if( receiveParcels(intent.getExtras()) ) 
 		{	
@@ -126,66 +123,48 @@ public class LocalizeService extends IntentService {
 			// Instance of WifiManager to handle scanning. Final because we dont want it to change
 			myWifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 			
-			// Instance of receiver class
 			myReceiver = new LocalizeBroadcastReceiver();
 							
 			// Register the receiver so the wifi manager knows where to go once its done.
 			this.registerReceiver(myReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));	
 		
-			while (true)
+			
+			/***  TODO: Here is where we can loop multiple times in the case where the user wants more accuracy ****/ 
+			
+			// Start scanning and predicting
+			myWifiManager.startScan();
+			
+			//TODO: Get rid of this sleep somehow.. (BroadcastReceiver or AsyncTask??)
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			
+			/*** TODO: End of that loooop ***/
+			
+			//Obtain a message from the pool
+			Message msg = Message.obtain();
+			
+			msg.arg1 = Activity.RESULT_OK;
+			
+			// After receiving scans and storing in a double array,
+			// bundle the results up and send back to activity via a message/messenger
+			Bundle outData = new Bundle();
+			outData.putDoubleArray(LocalizeService.SCANARRAY_KEY, rssis);
+			
+			msg.setData(outData);
+			//msg.obj = outString;
+			try {
+				messenger.send(msg);
+			} catch (android.os.RemoteException e)
 			{
-				// Run the service
-				runWifiService();
-				// Reset the rssi array
-				resetArray();
+				Log.w(getClass().getName(), "Exception sending message", e);
 			}
 		}
 	}
 	
-	/**
-	 * This method starts the WiFi adapter scan and records the results.
-	 * Once the results are recorded, the results are sent back to the main activity via a message
-	 * 
-	 */
-	private void runWifiService()
-	{
-
-		/***  TODO: Here is where we can loop multiple times in the case where the user wants more accuracy ****/ 
-		
-		// Start scanning and predicting
-		myWifiManager.startScan();
-		
-		//TODO: Get rid of this sleep somehow.. (BroadcastReceiver or AsyncTask??)
-		try {
-			Thread.sleep(2000);
-		} catch (InterruptedException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		
-		/*** TODO: End of that loooop ***/
-		
-		//Obtain a message from the pool
-		Message msg = Message.obtain();
-		
-		msg.arg1 = Activity.RESULT_OK;
-		
-		// After receiving scans and storing in a double array,
-		// bundle the results up and send back to activity via a message/messenger
-		Bundle outData = new Bundle();
-		outData.putDoubleArray(LocalizeService.SCANARRAY_KEY, rssis);
-		//Unregister receiver
-		//this.unregisterReceiver(myReceiver);
-		msg.setData(outData);
-		//msg.obj = outString;
-		try {
-			messenger.send(msg);
-		} catch (android.os.RemoteException e)
-		{
-			Log.w(getClass().getName(), "Exception sending message", e);
-		}
-		
-	}
 	
 	@Override
 	public void onDestroy()
@@ -194,6 +173,7 @@ public class LocalizeService extends IntentService {
 		this.unregisterReceiver(myReceiver);
 		//this.unregisterReceiver(myReceiver);
 		this.stopSelf();
+		
 	}
 	
 	
@@ -201,7 +181,6 @@ public class LocalizeService extends IntentService {
 	public void onCreate()
 	{
 		super.onCreate();
-		//initWifiTools();
 	}
 	
 	/**
@@ -239,5 +218,5 @@ public class LocalizeService extends IntentService {
 		
 		return;
 	}
-	
+
 }

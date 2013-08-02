@@ -2,6 +2,7 @@ package com.tracme.localize;
 
 import java.util.concurrent.ExecutionException;
 
+import com.tracme.R;
 import com.tracme.training.TestingTask;
 import com.tracme.util.*;
 
@@ -11,12 +12,30 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.Messenger;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Canvas;
+import android.graphics.Matrix;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.ShapeDrawable;
+import android.graphics.drawable.shapes.OvalShape;
+import android.util.AttributeSet;
+import android.util.DisplayMetrics;
+import android.view.LayoutInflater;
 import android.view.Menu;
+import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.View.OnTouchListener;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
+import android.widget.SeekBar;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.SeekBar.OnSeekBarChangeListener;
 
 /**
  * Main Activity for TracMe localization. 
@@ -27,7 +46,7 @@ import android.widget.Toast;
  * @author Ken Ugo
  *
  */
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements OnTouchListener {
 	
 	APTable apTable;
 	
@@ -60,6 +79,23 @@ public class MainActivity extends Activity {
 	// Interface to localization classes provided by Dr. Tran
 	private TestingTask localize; 
 	
+	/***********************************************
+	 * Variables for the Image Manipulation aspect *
+	 *                                             *
+	 *                                             *
+	 ***********************************************/
+	
+	// Views for the Background Image and positioning Icon
+	private ImageView imgView;
+	private MyDrawableView myDView;
+	
+	private LocalizeDisplay ld;
+	
+	private int numScans = 1;
+	private int numScansPending;
+	
+	/****************** END *************************/
+	
 	/**
 	 *  Handler for message communication between main activity and signal scanning intent service 
 	 */
@@ -71,7 +107,6 @@ public class MainActivity extends Activity {
 		@Override
 		public void handleMessage(Message msg)
 		{
-			
 			//Receive the message and, using the information 
 			//received from the message, update the location of the user on the map 
 			if (msg.arg1 == RESULT_OK)
@@ -88,7 +123,7 @@ public class MainActivity extends Activity {
 				translatePoint(prediction);
 				
 				// Restart the service
-				//initIntentService();
+				initIntentService();
 						
 			}
 			else {
@@ -103,13 +138,20 @@ public class MainActivity extends Activity {
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_main);
+		super.onCreate(savedInstanceState);		
+		setContentView(R.layout.activity_two);
+
+		imgView = (ImageView) findViewById(R.id.imageView1);
+
+		myDView = (MyDrawableView) findViewById(R.id.circleView1);
+		myDView.setVisibility(View.INVISIBLE);
+
+		imgView.setOnTouchListener(this);
 		
-		initialProgBar = (ProgressBar) findViewById(R.id.progressBar1);
+		//initialProgBar = (ProgressBar) findViewById(R.id.progressBar1);
 		
 		// Set the max value of the progress bar to the number of classes that we must load
-		initialProgBar.setMax(100);
+		//initialProgBar.setMax(100);
 		
 		setInitialValues();
 		
@@ -118,23 +160,132 @@ public class MainActivity extends Activity {
 		Toast.makeText(this, "Localize", Toast.LENGTH_LONG)
 		.show();
 		
+		// Initialize the first intent service and start it
 		initIntentService();
 		
+		ld = new LocalizeDisplay();
+		ld.drawable = getResources().getDrawable(R.drawable.cc_1);
+		ld.calcInitScale();
+		
 	}
-
+	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.activity_main, menu);
+		getMenuInflater().inflate(R.menu.main, menu);
 		return true;
 	}
 	
+	public boolean onOptionsItemSelected(MenuItem item) {
+		switch (item.getItemId()) {
+		case R.id.action_settings:
+			showSeek();
+			return true;
+		default:
+			return super.onOptionsItemSelected(item);
+		}
+	}
+
+	public void showSeek() {
+		final TextView tvBetVal;
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		LayoutInflater inflater = this.getLayoutInflater();
+		View v = inflater.inflate(R.layout.dialog, null);
+		builder
+				.setView(v)
+				.setTitle(
+						"Enter the sampling speed (Note: Higher speeds may reduce accuracy)")
+				.setPositiveButton("Confirm", new DialogInterface.OnClickListener() {
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						// confirmValues();
+						// SAVE THE PROGRESS BAR VALUE SOMEWHERE
+						numScans = (numScansPending == 0) ? (1) : (numScansPending);
+						// Set the option for the next intent
+						options.setNumScans(numScans);
+						dialog.dismiss();
+					}
+				}).setNeutralButton("Cancel", null).show();
+		SeekBar sbBetVal = (SeekBar) v.findViewById(R.id.sbBetVal);
+		tvBetVal = (TextView) v.findViewById(R.id.tvBetVal);
+		sbBetVal.setMax(10);
+		sbBetVal.setProgress(numScans);
+		sbBetVal.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
+
+			@Override
+			public void onStopTrackingTouch(SeekBar seekBar) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void onStartTrackingTouch(SeekBar seekBar) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void onProgressChanged(SeekBar seekBar, int progress,
+					boolean fromUser) {
+				// TODO Auto-generated method stub
+				tvBetVal.setText(String.valueOf(progress));
+				numScansPending = progress;
+			}
+		});
+	}	
 	@Override
 	public void onDestroy()
 	{
 		super.onDestroy();
 		stopService(localizeIntent);
 	}
+	
+	public boolean onTouch(View v, MotionEvent event) {
+		DisplayMetrics metrics = new DisplayMetrics();
+		getWindowManager().getDefaultDisplay().getMetrics(metrics);
+
+		// handle touch events here
+		ImageView view = (ImageView) v;
+
+		switch (event.getAction() & MotionEvent.ACTION_MASK) {
+		case MotionEvent.ACTION_DOWN:
+			ld.actionDown(event);
+			ld.mode = LocalizeDisplay.DRAG;
+			break;
+		case MotionEvent.ACTION_POINTER_DOWN:
+			System.out.println("Subsequent presses");
+			ld.pointerDown(event);
+			
+			ld.oldDist = ld.spacing(event);
+			if (ld.oldDist > 10f) {
+				ld.savedMatrix.set(ld.matrix);
+				ld.midPoint(ld.mid, event);
+				ld.mode = LocalizeDisplay.ZOOM;
+			}
+			break;
+		case MotionEvent.ACTION_UP:
+		case MotionEvent.ACTION_POINTER_UP:
+			ld.checkEdgeCases(view);
+
+			ld.mode = LocalizeDisplay.NONE;
+			break;
+		case MotionEvent.ACTION_MOVE:
+			if (ld.mode == LocalizeDisplay.DRAG) {
+				ld.drag(event);
+			}
+			else if (ld.mode == LocalizeDisplay.ZOOM) {
+        ld.zoomAndRotate(event, view);
+			}
+			break;
+		}
+
+		ld.matrix.getValues(ld.eventMatrix);
+
+		/* The point specified will be given by the localization function */
+		plotPoint(365, 261);
+		view.setImageMatrix(ld.matrix);
+		return true;
+	}	
 	
 	/**
 	 * Initialize the information that will be sent to the service.
@@ -193,12 +344,62 @@ public class MainActivity extends Activity {
 	 */
 	private void initTraining()
 	{
-		initialProgBar.setVisibility(View.VISIBLE);
+		//initialProgBar.setVisibility(View.VISIBLE);
 		System.out.println("GOING TO ESTIMATE LOCATION...");
 		localize = new TestingTask(rawFile, trainFile);
 		localize.setProgBar(initialProgBar);
 		//System.out.println("SETTING CLASSES");
 		//localize.execute(nX, nY, this.initialProgBar).get();
 		localize.setNumClasses(nX, nY);
+	}
+	
+	/*
+	 * Function that will plot the point correctly regardless of scale or position
+	 */
+	private void plotPoint(float x, float y) {
+		// TODO adjust for rotation
+
+		myDView.setVisibility(View.INVISIBLE);
+		myDView.setX(ld.getAdjustedX(x));
+		myDView.setY(ld.getAdjustedY(y));
+		myDView.setVisibility(View.VISIBLE);
+		return;
+	}	
+}
+
+/*
+ * Tracking circle
+ */
+class MyDrawableView extends View {
+	private ShapeDrawable mDrawable;
+
+	public MyDrawableView(Context context) {
+		super(context);
+
+		int x = 10;
+		int y = 10;
+		int width = 300;
+		int height = 50;
+
+		mDrawable = new ShapeDrawable(new OvalShape());
+		mDrawable.getPaint().setColor(0xff74AC23);
+		mDrawable.setBounds(x, y, x + width, y + height);
+	}
+
+	public MyDrawableView(Context context, AttributeSet attrs) {
+		super(context, attrs);
+
+		int x = 0;
+		int y = 0;
+		int width = 50;
+		int height = 50;
+
+		mDrawable = new ShapeDrawable(new OvalShape());
+		mDrawable.getPaint().setColor(0xff74AC23);
+		mDrawable.setBounds(x, y, x + width, y + height);
+	}
+
+	protected void onDraw(Canvas canvas) {
+		mDrawable.draw(canvas);
 	}
 }

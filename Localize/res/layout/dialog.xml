@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+android:id="@+id/betvalue"
+android:layout_width="fill_parent"
+android:layout_height="wrap_content"
+android:padding="10dp" >
+
+<TextView
+    android:id="@+id/tvBetVal"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_alignParentTop="true"
+    android:layout_centerHorizontal="true"
+    android:text="Speed"
+    android:textAppearance="?android:attr/textAppearanceLarge" />
+
+<SeekBar
+    android:id="@+id/sbBetVal"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:layout_below="@+id/tvBetVal"
+    android:layout_centerHorizontal="true" />
+
+</RelativeLayout>
