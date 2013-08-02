@@ -14,6 +14,8 @@ import android.content.IntentFilter;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
 import android.util.Log;
@@ -38,14 +40,18 @@ public class LocalizeService extends IntentService {
 	public static final String APTABLE_KEY = "APTABLE";
 	public static final String SCANARRAY_KEY = "SCANARRAY";
 	public static final String COUNT_KEY = "COUNT";
+	public static final String SERVICE_MESSENGER_KEY = "SERVICEMESSENGER";
 	
+	/* Fields that are sent to us in the bundle from the main activity */
 	private APTable apTable;
-	public LocalizeOptions options;
+	private LocalizeOptions options;
 	private Messenger messenger;
 	private int count;
 	
-	//public WifiManager myWifiManager;
-	//public WiFiScanReceiver myReceiver = null;
+	/* How many runs this service has had (how many times its looped) */
+	private int run = 1;
+
+	
 	private LocalizeBroadcastReceiver myReceiver;
 	private WifiManager myWifiManager;
 	
@@ -59,6 +65,8 @@ public class LocalizeService extends IntentService {
 	private int nX = 100; // Number of classes in x dimension
 	private int nY = 100; // Number of classes in y dimension
 	/*** END ****/
+	
+	int rssival = 0;
 	
 	/**
 	 * Nested class for Receiving WiFi scan results from the WifiManager.
@@ -93,6 +101,31 @@ public class LocalizeService extends IntentService {
 		}
 	}
 	
+	
+	/**
+	 * Handler for message communication between this service and the main activity
+	 * that is using this service
+	 * 
+	 * @author Kwaku Farkye
+	 *
+	 */
+	private class LocalizeServiceHandler extends Handler {
+		/**
+		 * Method called upon receiving a message
+		 */
+		@Override
+		public void handleMessage(Message msg)
+		{
+			if (msg.arg1 == Activity.RESULT_OK)
+			{
+				rssival = msg.arg2;
+			}
+		}
+	}
+	
+
+	private LocalizeServiceHandler lHandler = new LocalizeServiceHandler();
+	
 	public LocalizeService()
 	{
 		super("LocalizeService");
@@ -115,7 +148,7 @@ public class LocalizeService extends IntentService {
 	{
 		String str = intent.getStringExtra("PATH");
 		// Recreate the objects that were passed in the intent
-		if( receiveParcels(intent.getExtras()) ) 
+		if( receiveParcels(intent.getExtras()) && run == 1 ) 
 		{	
 			// Initialize our double array to the amount of access points in the access point table
 			rssis = new double[apTable.getAPTable().size()];
@@ -138,7 +171,9 @@ public class LocalizeService extends IntentService {
 				runWifiService();
 				// Reset the rssi array
 				resetArray();
-			}
+				//Increment amount of runs
+				run++;
+			} 
 		}
 	}
 	
@@ -170,14 +205,24 @@ public class LocalizeService extends IntentService {
 		
 		msg.arg1 = Activity.RESULT_OK;
 		
+		// TESTING
+		rssis[0] = rssival;
+		
 		// After receiving scans and storing in a double array,
 		// bundle the results up and send back to activity via a message/messenger
 		Bundle outData = new Bundle();
 		outData.putDoubleArray(LocalizeService.SCANARRAY_KEY, rssis);
-		//Unregister receiver
-		//this.unregisterReceiver(myReceiver);
+		
+		// Send the activity back our messenger if this is the first run
+		if (run == 1)
+		{
+			Messenger myMessenger = new Messenger(lHandler);
+			// Pass our handler back to the main activity
+			outData.putParcelable(SERVICE_MESSENGER_KEY, myMessenger);
+		}
+		
 		msg.setData(outData);
-		//msg.obj = outString;
+		
 		try {
 			messenger.send(msg);
 		} catch (android.os.RemoteException e)
@@ -192,7 +237,6 @@ public class LocalizeService extends IntentService {
 	{
 		super.onDestroy();
 		this.unregisterReceiver(myReceiver);
-		//this.unregisterReceiver(myReceiver);
 		this.stopSelf();
 	}
 	
@@ -201,7 +245,6 @@ public class LocalizeService extends IntentService {
 	public void onCreate()
 	{
 		super.onCreate();
-		//initWifiTools();
 	}
 	
 	/**

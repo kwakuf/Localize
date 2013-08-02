@@ -13,6 +13,7 @@ import android.os.Messenger;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Intent;
+import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.widget.ProgressBar;
@@ -24,14 +25,15 @@ import android.widget.Toast;
  * as well as Message/Messenger/Message Handling for the intent service that will handle scanning for signals
  *  
  * @author Kwaku Farkye
- * @author Ken Ugo
  *
  */
 public class MainActivity extends Activity {
 	
+	/* Access Point Table */
 	APTable apTable;
 	
 	/******** TODO: HOW ARE WE GOING TO SET THESE? *******/
+	/* Access point file to load (must be in downloads folder right now) */
 	String apfilename;
 	
 	/* Options for localization (set these in settings) */
@@ -55,10 +57,14 @@ public class MainActivity extends Activity {
 	public int count = 1;
 	
 	double[] prediction = new double[2]; // Prediction of the corresponding point
-	double[] rssis;
+	double[] rssis; // RSSIs values received from the LocalizeService IntentService
 	
 	// Interface to localization classes provided by Dr. Tran
-	private TestingTask localize; 
+	private TestingTask localize;
+	
+	/* Messenger for the IntentService so that we can communicate with it */
+	private Messenger serviceMessenger = null;
+	int k = 1;
 	
 	/**
 	 *  Handler for message communication between main activity and signal scanning intent service 
@@ -79,16 +85,26 @@ public class MainActivity extends Activity {
 				// Receive the bundle that was passed by the message
 				Bundle inData = msg.getData();
 				
+				if (serviceMessenger == null)
+				{
+					// Receive the messenger for the intent service
+					serviceMessenger = (Messenger)inData.getParcelable(LocalizeService.SERVICE_MESSENGER_KEY);
+					Toast.makeText(MainActivity.this, "Received messenger!", Toast.LENGTH_LONG).show();
+				}
+				
 				// Receive the double array in the bundle, representing the results of the scan
 				rssis = inData.getDoubleArray(LocalizeService.SCANARRAY_KEY);
 				
-				// Call to Training interface: Predict the location
-				prediction = localize.getEstLocation(rssis);
+				Toast.makeText(MainActivity.this, "First RSSI Received: " + rssis[0], Toast.LENGTH_LONG).show();
 				
-				translatePoint(prediction);
+				// Call to Training interface: Predict the location
+				//prediction = localize.getEstLocation(rssis);
+				
+				//translatePoint(prediction);
 				
 				// Restart the service
 				//initIntentService();
+				sendMessageToService(k++);
 						
 			}
 			else {
@@ -200,5 +216,19 @@ public class MainActivity extends Activity {
 		//System.out.println("SETTING CLASSES");
 		//localize.execute(nX, nY, this.initialProgBar).get();
 		localize.setNumClasses(nX, nY);
+	}
+	
+	private void sendMessageToService(int k)
+	{
+		Message msg = Message.obtain();
+		msg.arg1 = Activity.RESULT_OK;
+		msg.arg2 = k;
+		
+		try {
+			serviceMessenger.send(msg);
+		} catch (Exception e)
+		{
+			Log.w(getClass().getName(), "Exception sending message", e);
+		}
 	}
 }
