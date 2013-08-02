@@ -88,7 +88,7 @@ public class MainActivity extends Activity {
 				translatePoint(prediction);
 				
 				// Restart the service
-				initIntentService();
+				//initIntentService();
 						
 			}
 			else {

@@ -61,7 +61,9 @@ public class LocalizeService extends IntentService {
 	/*** END ****/
 	
 	/**
-	 * Class for Receiving WiFi scan results from the WifiManager
+	 * Nested class for Receiving WiFi scan results from the WifiManager.
+	 * When a scan is finished and received, the results are stored in a double array
+	 * (rssis)
 	 * 
 	 * @author Kwaku Farkye
 	 *
@@ -96,7 +98,7 @@ public class LocalizeService extends IntentService {
 		super("LocalizeService");
 	}
 	
-	public void setRSSIArrayValue(int apID, int rssival)
+	protected void setRSSIArrayValue(int apID, int rssival)
 	{
 		// Since the access point IDs in the table start at 1, we must decrement the array id by 1
 		int arrayID = apID - 1;
@@ -124,49 +126,66 @@ public class LocalizeService extends IntentService {
 			// Instance of WifiManager to handle scanning. Final because we dont want it to change
 			myWifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 			
+			// Instance of receiver class
 			myReceiver = new LocalizeBroadcastReceiver();
 							
 			// Register the receiver so the wifi manager knows where to go once its done.
 			this.registerReceiver(myReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));	
 		
-			
-			/***  TODO: Here is where we can loop multiple times in the case where the user wants more accuracy ****/ 
-			
-			// Start scanning and predicting
-			myWifiManager.startScan();
-			
-			//TODO: Get rid of this sleep somehow.. (BroadcastReceiver or AsyncTask??)
-			try {
-				Thread.sleep(2000);
-			} catch (InterruptedException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-			
-			/*** TODO: End of that loooop ***/
-			
-			//Obtain a message from the pool
-			Message msg = Message.obtain();
-			
-			msg.arg1 = Activity.RESULT_OK;
-			
-			// After receiving scans and storing in a double array,
-			// bundle the results up and send back to activity via a message/messenger
-			Bundle outData = new Bundle();
-			outData.putDoubleArray(LocalizeService.SCANARRAY_KEY, rssis);
-			//Unregister receiver
-			//this.unregisterReceiver(myReceiver);
-			msg.setData(outData);
-			//msg.obj = outString;
-			try {
-				messenger.send(msg);
-			} catch (android.os.RemoteException e)
+			while (true)
 			{
-				Log.w(getClass().getName(), "Exception sending message", e);
+				// Run the service
+				runWifiService();
+				// Reset the rssi array
+				resetArray();
 			}
 		}
 	}
 	
+	/**
+	 * This method starts the WiFi adapter scan and records the results.
+	 * Once the results are recorded, the results are sent back to the main activity via a message
+	 * 
+	 */
+	private void runWifiService()
+	{
+
+		/***  TODO: Here is where we can loop multiple times in the case where the user wants more accuracy ****/ 
+		
+		// Start scanning and predicting
+		myWifiManager.startScan();
+		
+		//TODO: Get rid of this sleep somehow.. (BroadcastReceiver or AsyncTask??)
+		try {
+			Thread.sleep(2000);
+		} catch (InterruptedException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		
+		/*** TODO: End of that loooop ***/
+		
+		//Obtain a message from the pool
+		Message msg = Message.obtain();
+		
+		msg.arg1 = Activity.RESULT_OK;
+		
+		// After receiving scans and storing in a double array,
+		// bundle the results up and send back to activity via a message/messenger
+		Bundle outData = new Bundle();
+		outData.putDoubleArray(LocalizeService.SCANARRAY_KEY, rssis);
+		//Unregister receiver
+		//this.unregisterReceiver(myReceiver);
+		msg.setData(outData);
+		//msg.obj = outString;
+		try {
+			messenger.send(msg);
+		} catch (android.os.RemoteException e)
+		{
+			Log.w(getClass().getName(), "Exception sending message", e);
+		}
+		
+	}
 	
 	@Override
 	public void onDestroy()
@@ -175,7 +194,6 @@ public class LocalizeService extends IntentService {
 		this.unregisterReceiver(myReceiver);
 		//this.unregisterReceiver(myReceiver);
 		this.stopSelf();
-		
 	}
 	
 	
@@ -222,22 +240,4 @@ public class LocalizeService extends IntentService {
 		return;
 	}
 	
-	/**
-	 * Initialize the Wifi receiver and scanner
-	 *  
-	 
-	private void initWifiTools()
-	{
-		// Setup WiFi
-		myWifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-
-		// Register Broadcast Receiver
-		//if (myReceiver == null)
-		//	myReceiver = new WiFiScanReceiver(this);
-			
-		//registerReceiver((BroadcastReceiver) myReceiver, new IntentFilter(
-		//		WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-		
-	}
-	**/
 }
