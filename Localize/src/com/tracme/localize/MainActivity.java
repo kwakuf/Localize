@@ -2,7 +2,7 @@ package com.tracme.localize;
 
 import java.util.concurrent.ExecutionException;
 
-import com.example.newlocalize.R;
+import com.tracme.R;
 import com.tracme.training.TestingTask;
 import com.tracme.util.*;
 
@@ -152,17 +152,17 @@ public class MainActivity extends Activity implements OnTouchListener {
 		initialProgBar = (ProgressBar) findViewById(R.id.progressBar1);
 		
 		// Set the max value of the progress bar to the number of classes that we must load
-//		initialProgBar.setMax(100);
-//		
-//		setInitialValues();
-//		
-//		initTraining();
-//		
-//		Toast.makeText(this, "Localize", Toast.LENGTH_LONG)
-//		.show();
-//		
-//		initIntentService();
+		initialProgBar.setMax(100);
 		
+		setInitialValues();
+		
+		initTraining();
+		
+		Toast.makeText(this, "Localize", Toast.LENGTH_LONG)
+		.show();
+		
+		initIntentService();
+		ld = new LocalizeDisplay();
 		ld.drawable = getResources().getDrawable(R.drawable.cc_1);
 		ld.calcInitScale();
 	}
