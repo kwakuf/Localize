@@ -100,6 +100,12 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	/****************** END *************************/
 	
+	// x coordinate for plotting on the image
+	protected float xCoord = 0;
+	
+	// y coordinate for plotting on the image
+	protected float yCoord = 0;
+	
 	/**
 	 *  Handler for message communication between main activity and signal scanning intent service 
 	 */
@@ -111,7 +117,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 		@Override
 		public void handleMessage(Message msg)
 		{
-			
 			//Receive the message and, using the information 
 			//received from the message, update the location of the user on the map 
 			if (msg.arg1 == RESULT_OK)
@@ -165,12 +170,17 @@ public class MainActivity extends Activity implements OnTouchListener {
 		Toast.makeText(this, "Localize", Toast.LENGTH_LONG)
 		.show();
 		
+		// Initialize the first intent service and start it
 		//initIntentService();
 		//ld = new LocalizeDisplay();
 		//ld.drawable = getResources().getDrawable(R.drawable.cc_1);
 		//ld.calcInitScale();
+		ld = new LocalizeDisplay();
+		ld.drawable = getResources().getDrawable(R.drawable.cc_1);
+		ld.calcInitScale();
+		
 	}
-
+	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
@@ -282,7 +292,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		ld.matrix.getValues(ld.eventMatrix);
 
 		/* The point specified will be given by the localization function */
-		plotPoint(365, 261);
+		plotPoint(xCoord, yCoord);
 		view.setImageMatrix(ld.matrix);
 		return true;
 	}	
@@ -310,6 +320,10 @@ public class MainActivity extends Activity implements OnTouchListener {
 	{
 		String res = "Predicted Location: " + prediction[0] + "," + prediction[1];
 		localizationLog.save(res + "\n");
+		// Set the coord values to the predicted values
+		xCoord = (float)prediction[0];
+		yCoord = (float)prediction[1];
+		plotPoint(xCoord, yCoord);
 		Toast.makeText(MainActivity.this,
 				res, Toast.LENGTH_LONG)
 				.show();
@@ -344,7 +358,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	 */
 	private void initTraining()
 	{
-		initialProgBar.setVisibility(View.VISIBLE);
+		//initialProgBar.setVisibility(View.VISIBLE);
 		System.out.println("GOING TO ESTIMATE LOCATION...");
 		localize = new TestingTask(rawFile, trainFile);
 		localize.setProgBar(initialProgBar);
