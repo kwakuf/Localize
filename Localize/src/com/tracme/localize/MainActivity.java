@@ -323,7 +323,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		apTable = new APTable(apfilename);
 		apTable.loadTable();
 		
-		Toast.makeText(this, "AP Table Loaded " + Integer.valueOf(apTable.getAPTable().size()).toString(), Toast.LENGTH_LONG).show();
+		//Toast.makeText(this, "AP Table Loaded " + Integer.valueOf(apTable.getAPTable().size()).toString(), Toast.LENGTH_LONG).show();
 		
 		//Initialize options
 		options = new LocalizeOptions();
