@@ -159,6 +159,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		//imgView.setOnTouchListener(this);
 		
 		initialProgBar = (ProgressBar) findViewById(R.id.initProgBar);
+		//initialProgBar = (ProgressBar) findViewById(R.id.progressBar1);
 		
 		// Set the max value of the progress bar to the number of classes that we must load
 		initialProgBar.setMax(nX+nY);
@@ -174,11 +175,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		//initIntentService();
 		//ld = new LocalizeDisplay();
 		//ld.drawable = getResources().getDrawable(R.drawable.cc_1);
-		//ld.calcInitScale();
-		ld = new LocalizeDisplay();
-		ld.drawable = getResources().getDrawable(R.drawable.cc_1);
-		ld.calcInitScale();
-		
+		//ld.calcInitScale();		
 	}
 	
 	@Override
@@ -213,6 +210,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 						// confirmValues();
 						// SAVE THE PROGRESS BAR VALUE SOMEWHERE
 						numScans = (numScansPending == 0) ? (1) : (numScansPending);
+						// Set the option for the next intent
+						options.setNumScans(numScans);
 						dialog.dismiss();
 					}
 				}).setNeutralButton("Cancel", null).show();

@@ -111,7 +111,6 @@ public class LocalizeService extends IntentService {
 	@Override
 	protected void onHandleIntent(Intent intent)
 	{
-		String str = intent.getStringExtra("PATH");
 		// Recreate the objects that were passed in the intent
 		if( receiveParcels(intent.getExtras()) ) 
 		{	
@@ -154,8 +153,7 @@ public class LocalizeService extends IntentService {
 			// bundle the results up and send back to activity via a message/messenger
 			Bundle outData = new Bundle();
 			outData.putDoubleArray(LocalizeService.SCANARRAY_KEY, rssis);
-			//Unregister receiver
-			//this.unregisterReceiver(myReceiver);
+			
 			msg.setData(outData);
 			//msg.obj = outString;
 			try {
@@ -183,7 +181,6 @@ public class LocalizeService extends IntentService {
 	public void onCreate()
 	{
 		super.onCreate();
-		//initWifiTools();
 	}
 	
 	/**
@@ -221,23 +218,5 @@ public class LocalizeService extends IntentService {
 		
 		return;
 	}
-	
-	/**
-	 * Initialize the Wifi receiver and scanner
-	 *  
-	 
-	private void initWifiTools()
-	{
-		// Setup WiFi
-		myWifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 
-		// Register Broadcast Receiver
-		//if (myReceiver == null)
-		//	myReceiver = new WiFiScanReceiver(this);
-			
-		//registerReceiver((BroadcastReceiver) myReceiver, new IntentFilter(
-		//		WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-		
-	}
-	**/
 }
