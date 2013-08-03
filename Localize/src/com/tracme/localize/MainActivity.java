@@ -316,6 +316,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	{
 		String res = "Predicted Location: " + prediction[0] + "," + prediction[1];
 		localizationLog.save(res + "\n");
+		// Set the coord values to the predicted values
 		xCoord = (float)prediction[0];
 		yCoord = (float)prediction[1];
 		plotPoint(xCoord, yCoord);
