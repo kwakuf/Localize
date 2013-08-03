@@ -47,85 +47,90 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
  *
  */
 public class MainActivity extends Activity implements OnTouchListener {
-	
+
 	APTable apTable;
-	
+
 	/******** TODO: HOW ARE WE GOING TO SET THESE? *******/
 	String apfilename;
-	
+
 	/* Options for localization (set these in settings) */
 	LocalizeOptions options;
-	
+
 	/* Intent to start the LocalizeService */
 	Intent localizeIntent;
-	
+
 	private String rawFile = "cc1_76_nexus.txt"; // Name of the rawfile
 	private String trainFile = "train_p0.0.txt_sub_1.0.1.txt"; // Name of the training file
 	private int nX = 30; // Number of classes in x dimension
 	private int nY = 30; // Number of classes in y dimension
-	
+
 	AndroidLog localizationLog;
-	
+
 	/*********************END********************************/
-	
+
 	/* Progress Bar used to show initial loading of localization classes */
 	public ProgressBar initialProgBar;
 	public boolean doneLoading = false;
 	public int count = 1;
-	
+
 	double[] prediction = new double[2]; // Prediction of the corresponding point
 	double[] rssis;
-	
+
 	// Interface to localization classes provided by Dr. Tran
 	private TestingTask localize; 
-	
+
+	// x coordinate for plotting on the image
+	protected float xCoord = 0;
+
+	// y coordinate for plotting on the image
+	protected float yCoord = 0;
+
 	/***********************************************
 	 * Variables for the Image Manipulation aspect *
 	 *                                             *
 	 *                                             *
 	 ***********************************************/
-	
+
 	// Views for the Background Image and positioning Icon
 	private ImageView imgView;
 	private MyDrawableView myDView;
-	
+
 	private LocalizeDisplay ld;
-	
+
 	private int numScans = 1;
 	private int numScansPending;
-	
+
 	/****************** END *************************/
-	
+
 	/**
 	 *  Handler for message communication between main activity and signal scanning intent service 
 	 */
 	private class ScanHandler extends Handler {	
-		
+
 		/**
 		 * Method that is called when a message is received from a Messenger
 		 */
 		@Override
 		public void handleMessage(Message msg)
 		{
-			
 			//Receive the message and, using the information 
 			//received from the message, update the location of the user on the map 
 			if (msg.arg1 == RESULT_OK)
 			{
 				// Receive the bundle that was passed by the message
 				Bundle inData = msg.getData();
-				
+
 				// Receive the double array in the bundle, representing the results of the scan
 				rssis = inData.getDoubleArray(LocalizeService.SCANARRAY_KEY);
-				
+
 				// Call to Training interface: Predict the location
 				prediction = localize.getEstLocation(rssis);
-				
+
 				translatePoint(prediction);
-				
+
 				// Restart the service
 				initIntentService();
-						
+
 			}
 			else {
 				Toast.makeText(MainActivity.this, "Didnt receive anything back",
@@ -134,9 +139,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 			return;
 		}
 	}
-	
+
 	private ScanHandler sHandler = new ScanHandler();
-	
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);		
@@ -148,23 +153,26 @@ public class MainActivity extends Activity implements OnTouchListener {
 		myDView.setVisibility(View.INVISIBLE);
 
 		imgView.setOnTouchListener(this);
-		
-		initialProgBar = (ProgressBar) findViewById(R.id.progressBar1);
-		
+
+		//initialProgBar = (ProgressBar) findViewById(R.id.progressBar1);
+
 		// Set the max value of the progress bar to the number of classes that we must load
-		initialProgBar.setMax(100);
-		
+		//initialProgBar.setMax(100);
+
 		setInitialValues();
-		
+
 		initTraining();
-		
+
 		Toast.makeText(this, "Localize", Toast.LENGTH_LONG)
 		.show();
-		
+
+		// Initialize the first intent service and start it
 		initIntentService();
+
 		ld = new LocalizeDisplay();
 		ld.drawable = getResources().getDrawable(R.drawable.cc_1);
 		ld.calcInitScale();
+
 	}
 
 	@Override
@@ -173,7 +181,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		getMenuInflater().inflate(R.menu.main, menu);
 		return true;
 	}
-	
+
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.action_settings:
@@ -199,6 +207,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 						// confirmValues();
 						// SAVE THE PROGRESS BAR VALUE SOMEWHERE
 						numScans = (numScansPending == 0) ? (1) : (numScansPending);
+						// Set the option for the next intent
+						options.setNumScans(numScans);
 						dialog.dismiss();
 					}
 				}).setNeutralButton("Cancel", null).show();
@@ -235,7 +245,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		super.onDestroy();
 		stopService(localizeIntent);
 	}
-	
+
 	public boolean onTouch(View v, MotionEvent event) {
 		DisplayMetrics metrics = new DisplayMetrics();
 		getWindowManager().getDefaultDisplay().getMetrics(metrics);
@@ -251,7 +261,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		case MotionEvent.ACTION_POINTER_DOWN:
 			System.out.println("Subsequent presses");
 			ld.pointerDown(event);
-			
+
 			ld.oldDist = ld.spacing(event);
 			if (ld.oldDist > 10f) {
 				ld.savedMatrix.set(ld.matrix);
@@ -278,11 +288,11 @@ public class MainActivity extends Activity implements OnTouchListener {
 		ld.matrix.getValues(ld.eventMatrix);
 
 		/* The point specified will be given by the localization function */
-		plotPoint(365, 261);
+		plotPoint(xCoord, yCoord);
 		view.setImageMatrix(ld.matrix);
 		return true;
 	}	
-	
+
 	/**
 	 * Initialize the information that will be sent to the service.
 	 * Once the data is bundled within the intent, start the service.
@@ -306,11 +316,15 @@ public class MainActivity extends Activity implements OnTouchListener {
 	{
 		String res = "Predicted Location: " + prediction[0] + "," + prediction[1];
 		localizationLog.save(res + "\n");
+		// Set the coord values to the predicted values
+		xCoord = (float)prediction[0];
+		yCoord = (float)prediction[1];
+		plotPoint(xCoord, yCoord);
 		Toast.makeText(MainActivity.this,
 				res, Toast.LENGTH_LONG)
 				.show();
 	}
-	
+
 	/**
 	 * Instantiate and set the initial values for objects/variables
 	 * used
@@ -322,15 +336,15 @@ public class MainActivity extends Activity implements OnTouchListener {
 		apfilename = "apcc1_76_nexus";
 		apTable = new APTable(apfilename);
 		apTable.loadTable();
-		
+
 		Toast.makeText(this, "AP Table Loaded " + Integer.valueOf(apTable.getAPTable().size()).toString(), Toast.LENGTH_LONG).show();
-		
+
 		//Initialize options
 		options = new LocalizeOptions();
 		localizeIntent = new Intent(this, LocalizeService.class);
-		
+
 	}
-	
+
 	/**
 	 * Initialize the training interface and all that is necessary to predict a location
 	 * 
@@ -340,7 +354,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	 */
 	private void initTraining()
 	{
-		initialProgBar.setVisibility(View.VISIBLE);
+		//initialProgBar.setVisibility(View.VISIBLE);
 		System.out.println("GOING TO ESTIMATE LOCATION...");
 		localize = new TestingTask(rawFile, trainFile);
 		localize.setProgBar(initialProgBar);
@@ -348,7 +362,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		//localize.execute(nX, nY, this.initialProgBar).get();
 		localize.setNumClasses(nX, nY);
 	}
-	
+
 	/*
 	 * Function that will plot the point correctly regardless of scale or position
 	 */
