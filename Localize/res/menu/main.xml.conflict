@@ -1,9 +1,18 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
+<<<<<<< HEAD
+
+    <item
+=======
     
   <item
+>>>>>>> 9b113032ab78a4c36a632f8f7aa658ab56f9d579
         android:id="@+id/action_settings"
         android:orderInCategory="100"
         android:showAsAction="never"
         android:title="@string/action_settings"/>
+<<<<<<< HEAD
+
+=======
   
+>>>>>>> 9b113032ab78a4c36a632f8f7aa658ab56f9d579
 </menu>
