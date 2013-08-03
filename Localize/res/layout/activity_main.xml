@@ -12,13 +12,13 @@
         android:layout_centerVertical="true"
         android:text="@string/hello_world" />
 
-    <ProgressBar
-        android:id="@+id/progressBar1"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="wrap_content"
+ 	<ProgressBar
+        android:id="@+id/initProgBar"
         android:layout_height="wrap_content"
-        android:layout_above="@+id/textView1"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="70dp" />
+        android:layout_width="match_parent" 
+        style="?android:attr/progressBarStyleHorizontal" 
+        android:layout_alignParentBottom="true"
+        android:layout_margin="10dp"
+    />	
 
 </RelativeLayout>

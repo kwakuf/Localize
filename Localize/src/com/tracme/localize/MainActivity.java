@@ -24,6 +24,7 @@ import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.OvalShape;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -78,6 +79,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	// Interface to localization classes provided by Dr. Tran
 	private TestingTask localize; 
+	
+	// Flag specifying whether something is being loaded currently
+	public boolean loadActive = false;
 	
 	/***********************************************
 	 * Variables for the Image Manipulation aspect *
@@ -140,19 +144,19 @@ public class MainActivity extends Activity implements OnTouchListener {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);		
-		setContentView(R.layout.activity_two);
+		setContentView(R.layout.activity_main);
 
-		imgView = (ImageView) findViewById(R.id.imageView1);
+		//imgView = (ImageView) findViewById(R.id.imageView1);
 
-		myDView = (MyDrawableView) findViewById(R.id.circleView1);
-		myDView.setVisibility(View.INVISIBLE);
+		//myDView = (MyDrawableView) findViewById(R.id.circleView1);
+		//myDView.setVisibility(View.INVISIBLE);
 
-		imgView.setOnTouchListener(this);
+		//imgView.setOnTouchListener(this);
 		
-		initialProgBar = (ProgressBar) findViewById(R.id.progressBar1);
+		initialProgBar = (ProgressBar) findViewById(R.id.initProgBar);
 		
 		// Set the max value of the progress bar to the number of classes that we must load
-		initialProgBar.setMax(100);
+		initialProgBar.setMax(nX+nY);
 		
 		setInitialValues();
 		
@@ -161,10 +165,10 @@ public class MainActivity extends Activity implements OnTouchListener {
 		Toast.makeText(this, "Localize", Toast.LENGTH_LONG)
 		.show();
 		
-		initIntentService();
-		ld = new LocalizeDisplay();
-		ld.drawable = getResources().getDrawable(R.drawable.cc_1);
-		ld.calcInitScale();
+		//initIntentService();
+		//ld = new LocalizeDisplay();
+		//ld.drawable = getResources().getDrawable(R.drawable.cc_1);
+		//ld.calcInitScale();
 	}
 
 	@Override
@@ -344,9 +348,26 @@ public class MainActivity extends Activity implements OnTouchListener {
 		System.out.println("GOING TO ESTIMATE LOCATION...");
 		localize = new TestingTask(rawFile, trainFile);
 		localize.setProgBar(initialProgBar);
-		//System.out.println("SETTING CLASSES");
-		//localize.execute(nX, nY, this.initialProgBar).get();
-		localize.setNumClasses(nX, nY);
+		final Thread initialLoadThread = new Thread()
+		{
+			
+			@Override
+			public void run()
+			{
+				try {
+					loadActive = true;
+					localize.setNumClasses(nX, nY);
+					loadActive = false;
+				} catch (Exception e)
+				{
+					Log.e("INITLOAD_THREAD", "Error while loading classees");
+					e.printStackTrace();
+				}
+			}
+		};
+		
+		initialLoadThread.start();
+		
 	}
 	
 	/*
