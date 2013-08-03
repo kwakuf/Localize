@@ -9,6 +9,7 @@ import com.tracme.util.*;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
 import android.app.Activity;
@@ -49,6 +50,8 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
  */
 public class MainActivity extends Activity implements OnTouchListener {
 	
+	public static final String LOAD_COMPLETE = "LoadComplete";
+	
 	APTable apTable;
 	
 	/******** TODO: HOW ARE WE GOING TO SET THESE? *******/
@@ -78,10 +81,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	double[] rssis;
 	
 	// Interface to localization classes provided by Dr. Tran
-	private TestingTask localize; 
-	
-	// Flag specifying whether something is being loaded currently
-	public boolean loadActive = false;
+	private TestingTask localize;
 	
 	/***********************************************
 	 * Variables for the Image Manipulation aspect *
@@ -106,8 +106,49 @@ public class MainActivity extends Activity implements OnTouchListener {
 	// y coordinate for plotting on the image
 	protected float yCoord = 0;
 	
+	// Runnable Thread used for inital loading of models and classes
+	private InitialLoadRunnable loadRunnable;
+	
+	// Instance of our scan handler to handle incoming messages
+	private ScanHandler sHandler = new ScanHandler();
+	
+	// Messenger for receiving messages from other threads
+	private Messenger messenger;
+	
 	/**
-	 *  Handler for message communication between main activity and signal scanning intent service 
+	 * Nested runnable class that loads the localization classes/models and updates
+	 * the progress bar on the UI thread while doing so.
+	 * 
+	 * @author Kwaku Farkye
+	 *
+	 */
+	private class InitialLoadRunnable implements Runnable {
+		@Override
+		public void run()
+		{
+			try {
+				// Setup the model classes
+				localize.setNumClasses(nX, nY);
+				
+				// Once models are loaded, send a message to the main thread
+				Message msg = Message.obtain();
+				// Tell the main thread that we are done loading
+				String loadResult = LOAD_COMPLETE;
+				msg.obj = loadResult;
+				// Send the message and end our run
+				messenger.send(msg);
+			} catch (Exception e)
+			{
+				Log.e("INITLOAD_THREAD", "Error while loading classees");
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	/**
+	 *  Nested Handler class for message communication between main activity and other threads/services
+	 *  started by the activity
+	 *  
 	 */
 	private class ScanHandler extends Handler {	
 		
@@ -117,6 +158,13 @@ public class MainActivity extends Activity implements OnTouchListener {
 		@Override
 		public void handleMessage(Message msg)
 		{
+			// Check if this is an initial load message from the initial load thread
+			if (msg.obj == LOAD_COMPLETE)
+			{
+				initImageView();
+				return;
+			}
+			
 			//Receive the message and, using the information 
 			//received from the message, update the location of the user on the map 
 			if (msg.arg1 == RESULT_OK)
@@ -144,26 +192,19 @@ public class MainActivity extends Activity implements OnTouchListener {
 		}
 	}
 	
-	private ScanHandler sHandler = new ScanHandler();
-	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);		
 		setContentView(R.layout.activity_main);
-
-		//imgView = (ImageView) findViewById(R.id.imageView1);
-
-		//myDView = (MyDrawableView) findViewById(R.id.circleView1);
-		//myDView.setVisibility(View.INVISIBLE);
-
-		//imgView.setOnTouchListener(this);
 		
 		initialProgBar = (ProgressBar) findViewById(R.id.initProgBar);
-		//initialProgBar = (ProgressBar) findViewById(R.id.progressBar1);
 		
 		// Set the max value of the progress bar to the number of classes that we must load
 		initialProgBar.setMax(nX+nY);
 		
+		// Make instance of runnable class for initial load of models..
+		loadRunnable = new InitialLoadRunnable();
+
 		setInitialValues();
 		
 		initTraining();
@@ -176,6 +217,24 @@ public class MainActivity extends Activity implements OnTouchListener {
 		//ld = new LocalizeDisplay();
 		//ld.drawable = getResources().getDrawable(R.drawable.cc_1);
 		//ld.calcInitScale();		
+	}
+	
+	private void initImageView()
+	{
+		setContentView(R.layout.activity_two);
+		imgView = (ImageView) findViewById(R.id.imageView1);
+
+		myDView = (MyDrawableView) findViewById(R.id.circleView1);
+		myDView.setVisibility(View.INVISIBLE);
+
+		imgView.setOnTouchListener(this);
+		
+		// Initialize the first intent service and start it
+		initIntentService();
+		
+		ld = new LocalizeDisplay();
+		ld.drawable = getResources().getDrawable(R.drawable.cc_1);
+		ld.calcInitScale();
 	}
 	
 	@Override
@@ -241,7 +300,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 				numScansPending = progress;
 			}
 		});
-	}	
+	}
+	
 	@Override
 	public void onDestroy()
 	{
@@ -294,15 +354,13 @@ public class MainActivity extends Activity implements OnTouchListener {
 		plotPoint(xCoord, yCoord);
 		view.setImageMatrix(ld.matrix);
 		return true;
-	}	
+	}
 	
 	/**
 	 * Initialize the information that will be sent to the service.
 	 * Once the data is bundled within the intent, start the service.
 	 */
 	public void initIntentService() {
-		// Create a Messenger for communication back and forth
-		Messenger messenger = new Messenger(sHandler);
 		// Add the Messenger info to the intent, so the
 		// intent service knows how who to give the message to
 		localizeIntent.putExtra(LocalizeService.MESSENGER_KEY, messenger);
@@ -346,41 +404,23 @@ public class MainActivity extends Activity implements OnTouchListener {
 		options = new LocalizeOptions();
 		localizeIntent = new Intent(this, LocalizeService.class);
 		
+		// Create a Messenger for communication back and forth
+		messenger = new Messenger(sHandler);
+		
 	}
 	
 	/**
 	 * Initialize the training interface and all that is necessary to predict a location
-	 * 
-	 * @throws ExecutionException 
-	 * @throws InterruptedException 
+	 *
 	 * 
 	 */
 	private void initTraining()
 	{
-		//initialProgBar.setVisibility(View.VISIBLE);
-		System.out.println("GOING TO ESTIMATE LOCATION...");
 		localize = new TestingTask(rawFile, trainFile);
 		localize.setProgBar(initialProgBar);
-		final Thread initialLoadThread = new Thread()
-		{
-			
-			@Override
-			public void run()
-			{
-				try {
-					loadActive = true;
-					localize.setNumClasses(nX, nY);
-					loadActive = false;
-				} catch (Exception e)
-				{
-					Log.e("INITLOAD_THREAD", "Error while loading classees");
-					e.printStackTrace();
-				}
-			}
-		};
 		
+		final Thread initialLoadThread = new Thread(loadRunnable);
 		initialLoadThread.start();
-		
 	}
 	
 	/*

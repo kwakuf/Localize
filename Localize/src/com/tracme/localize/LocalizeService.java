@@ -171,7 +171,6 @@ public class LocalizeService extends IntentService {
 	{
 		super.onDestroy();
 		this.unregisterReceiver(myReceiver);
-		//this.unregisterReceiver(myReceiver);
 		this.stopSelf();
 		
 	}
