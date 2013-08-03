@@ -79,6 +79,12 @@ public class MainActivity extends Activity implements OnTouchListener {
 	// Interface to localization classes provided by Dr. Tran
 	private TestingTask localize; 
 	
+	// x coordinate for plotting on the image
+	protected float xCoord = 0;
+	
+	// y coordinate for plotting on the image
+	protected float yCoord = 0;
+	
 	/***********************************************
 	 * Variables for the Image Manipulation aspect *
 	 *                                             *
@@ -282,7 +288,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		ld.matrix.getValues(ld.eventMatrix);
 
 		/* The point specified will be given by the localization function */
-		plotPoint(365, 261);
+		plotPoint(xCoord, yCoord);
 		view.setImageMatrix(ld.matrix);
 		return true;
 	}	
@@ -310,6 +316,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 	{
 		String res = "Predicted Location: " + prediction[0] + "," + prediction[1];
 		localizationLog.save(res + "\n");
+		xCoord = (float)prediction[0];
+		yCoord = (float)prediction[1];
+		plotPoint(xCoord, yCoord);
 		Toast.makeText(MainActivity.this,
 				res, Toast.LENGTH_LONG)
 				.show();
