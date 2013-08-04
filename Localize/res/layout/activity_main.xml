@@ -13,12 +13,15 @@
         android:text="@string/hello_world" />
 
  	<ProgressBar
-        android:id="@+id/initProgBar"
-        android:layout_height="wrap_content"
-        android:layout_width="match_parent" 
-        style="?android:attr/progressBarStyleHorizontal" 
-        android:layout_alignParentBottom="true"
-        android:layout_margin="10dp"
-    />	
+ 	    android:id="@+id/initProgBar"
+ 	    style="?android:attr/progressBarStyleHorizontal"
+ 	    android:layout_width="match_parent"
+ 	    android:layout_height="wrap_content"
+ 	    android:layout_below="@+id/textView1"
+ 	    android:layout_centerHorizontal="true"
+ 	    android:layout_margin="10dp"
+ 	    android:layout_marginTop="28dp"
+ 	    android:maxHeight="50dp"
+ 	    android:minHeight="50dp" />
 
 </RelativeLayout>
