@@ -50,12 +50,15 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
  */
 public class MainActivity extends Activity implements OnTouchListener {
 	
+	/* String passed to main thread specifying that load is complete */
 	public static final String LOAD_COMPLETE = "LoadComplete";
 	
+	/* Access point table object that holds all of the access points */
 	APTable apTable;
 	
 	/******** TODO: HOW ARE WE GOING TO SET THESE? *******/
-	String apfilename;
+	/* Name of the access point file */
+	String apfilename = "apcc1_76_nexus";;
 	
 	/* Options for localization (set these in settings) */
 	LocalizeOptions options;
@@ -65,22 +68,27 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	private String rawFile = "cc1_76_nexus.txt"; // Name of the rawfile
 	private String trainFile = "train_p0.0.txt_sub_1.0.1.txt"; // Name of the training file
-	private int nX = 30; // Number of classes in x dimension
-	private int nY = 30; // Number of classes in y dimension
+	private int nX = 100; // Number of classes in x dimension
+	private int nY = 100; // Number of classes in y dimension
 	
+	/* Localization log that will record our results */
 	AndroidLog localizationLog;
+	
+	/* Name of the localization log file */
+	String locLog = "loc_first_run";
 	
 	/*********************END********************************/
 	
 	/* Progress Bar used to show initial loading of localization classes */
 	public ProgressBar initialProgBar;
-	public boolean doneLoading = false;
 	public int count = 1;
 	
 	double[] prediction = new double[2]; // Prediction of the corresponding point
-	double[] rssis;
 	
-	// Interface to localization classes provided by Dr. Tran
+	/* Rssi values received from LocalizeService */
+	double[] rssis; 
+	
+	/* Interface to localization classes provided by Dr. Tran */
 	private TestingTask localize;
 	
 	/***********************************************
@@ -100,19 +108,19 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	/****************** END *************************/
 	
-	// x coordinate for plotting on the image
+	/* x coordinate for plotting on the image view */
 	protected float xCoord = 0;
 	
-	// y coordinate for plotting on the image
+	/* y coordinate for plotting on the image view */
 	protected float yCoord = 0;
 	
-	// Runnable Thread used for inital loading of models and classes
+	/* Runnable Thread used for initial loading of models and classes */
 	private InitialLoadRunnable loadRunnable;
 	
-	// Instance of our scan handler to handle incoming messages
+	/* Instance of our scan handler to handle incoming messages */
 	private ScanHandler sHandler = new ScanHandler();
 	
-	// Messenger for receiving messages from other threads
+	/* Messenger for receiving messages from other threads */
 	private Messenger messenger;
 	
 	/**
@@ -129,7 +137,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 			try {
 				// Setup the model classes
 				localize.setNumClasses(nX, nY);
-				
 				// Once models are loaded, send a message to the main thread
 				Message msg = Message.obtain();
 				// Tell the main thread that we are done loading
@@ -205,20 +212,22 @@ public class MainActivity extends Activity implements OnTouchListener {
 		// Make instance of runnable class for initial load of models..
 		loadRunnable = new InitialLoadRunnable();
 
+		// Set the initial values needed for this run
 		setInitialValues();
 		
+		// Initialize loading of the model classes (starts a new thread)
 		initTraining();
 		
 		Toast.makeText(this, "Localize", Toast.LENGTH_LONG)
-		.show();
-		
-		// Initialize the first intent service and start it
-		//initIntentService();
-		//ld = new LocalizeDisplay();
-		//ld.drawable = getResources().getDrawable(R.drawable.cc_1);
-		//ld.calcInitScale();		
+		.show();	
 	}
 	
+	/**
+	 * Initializes all of the components necessary for the localization image view.
+	 * Also sets the view to the localization image view. This method is called after the models
+	 * are loaded into their objects.
+	 * 
+	 */
 	private void initImageView()
 	{
 		setContentView(R.layout.activity_two);
@@ -367,12 +376,17 @@ public class MainActivity extends Activity implements OnTouchListener {
 		localizeIntent.putExtra(LocalizeService.OPTIONS_KEY, options);
 		localizeIntent.putExtra(LocalizeService.APTABLE_KEY, apTable);
 		localizeIntent.putExtra(LocalizeService.COUNT_KEY, count++);
-		localizeIntent.putExtra("PATH", "Hello World");
 		Toast.makeText(this, "IntentService", Toast.LENGTH_LONG)
 		.show();
 		startService(localizeIntent);
 	}
 
+	/**
+	 * Translates the returned points from getEstLocation into coordinates.
+	 * The coordinate values will then be plotted via plotPoint()
+	 * 
+	 * @param prediction The predicted values from getEstLocation()
+	 */
 	private void translatePoint(double[] prediction)
 	{
 		String res = "Predicted Location: " + prediction[0] + "," + prediction[1];
@@ -392,13 +406,12 @@ public class MainActivity extends Activity implements OnTouchListener {
 	 */
 	private void setInitialValues()
 	{
-		localizationLog = new AndroidLog("loc_first_run" + ".txt");
+		// Set up a localization log for testing/recording results
+		localizationLog = new AndroidLog(locLog + ".txt");
+		
 		// Load AP Table
-		apfilename = "apcc1_76_nexus";
 		apTable = new APTable(apfilename);
 		apTable.loadTable();
-		
-		//Toast.makeText(this, "AP Table Loaded " + Integer.valueOf(apTable.getAPTable().size()).toString(), Toast.LENGTH_LONG).show();
 		
 		//Initialize options
 		options = new LocalizeOptions();

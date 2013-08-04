@@ -2,7 +2,7 @@
 <resources>
 
     <string name="app_name">Localize</string>
-    <string name="hello_world">Hello world!</string>
+    <string name="hello_world">Tracme is Loading..</string>
     <string name="menu_settings">Settings</string>
     <string name="action_settings">Settings</string>
 
