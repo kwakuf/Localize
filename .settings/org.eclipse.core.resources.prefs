@@ -1,2 +1,6 @@
 eclipse.preferences.version=1
 encoding//Localize/res/menu/main.xml=UTF-8
+<<<<<<< HEAD
+=======
+encoding//Localize/src/com/tracme/localize/MainActivity.java=UTF-8
+>>>>>>> master

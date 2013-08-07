@@ -78,6 +78,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 
 	// Interface to localization classes provided by Dr. Tran
 	private TestingTask localize; 
+<<<<<<< HEAD
 
 	// x coordinate for plotting on the image
 	protected float xCoord = 0;
@@ -85,6 +86,15 @@ public class MainActivity extends Activity implements OnTouchListener {
 	// y coordinate for plotting on the image
 	protected float yCoord = 0;
 
+=======
+	
+	// x coordinate for plotting on the image
+	protected float xCoord = 0;
+	
+	// y coordinate for plotting on the image
+	protected float yCoord = 0;
+	
+>>>>>>> master
 	/***********************************************
 	 * Variables for the Image Manipulation aspect *
 	 *                                             *
@@ -153,18 +163,28 @@ public class MainActivity extends Activity implements OnTouchListener {
 		myDView.setVisibility(View.INVISIBLE);
 
 		imgView.setOnTouchListener(this);
+<<<<<<< HEAD
 
 		//initialProgBar = (ProgressBar) findViewById(R.id.progressBar1);
 
 		// Set the max value of the progress bar to the number of classes that we must load
 		//initialProgBar.setMax(100);
 
+=======
+		
+		//initialProgBar = (ProgressBar) findViewById(R.id.progressBar1);
+		
+		// Set the max value of the progress bar to the number of classes that we must load
+		//initialProgBar.setMax(100);
+		
+>>>>>>> master
 		setInitialValues();
 
 		initTraining();
 
 		Toast.makeText(this, "Localize", Toast.LENGTH_LONG)
 		.show();
+<<<<<<< HEAD
 
 		// Initialize the first intent service and start it
 		initIntentService();
@@ -173,8 +193,18 @@ public class MainActivity extends Activity implements OnTouchListener {
 		ld.drawable = getResources().getDrawable(R.drawable.cc_1);
 		ld.calcInitScale();
 
+=======
+		
+		// Initialize the first intent service and start it
+		initIntentService();
+		
+		ld = new LocalizeDisplay();
+		ld.drawable = getResources().getDrawable(R.drawable.cc_1);
+		ld.calcInitScale();
+		
+>>>>>>> master
 	}
-
+	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
