@@ -159,14 +159,14 @@ public	class TestingTask extends AsyncTask < Object, Integer, Void > {
 			//System.out.println("Load training model " + str);
 			modelX[i] = new TrainingModel(str, numAnchors);
 			
-			//initialProgBar.setProgress(++totalClassesDone);
+			initialProgBar.setProgress(++totalClassesDone);
 		}
 		for (int i = 0; i < numClassesY; i++) {
 			System.out.println("SETTING CLASSES FOR Y: " + i);
 			String str = rawDataFile +"_dir/" + trainFile + "_dir/Y" + numClassesY + "/" + (i+1) + ".txt";
 			//System.out.println("Load training model " + str);
 			modelY[i] = new TrainingModel(str, numAnchors);
-			//initialProgBar.setProgress(++totalClassesDone);
+			initialProgBar.setProgress(++totalClassesDone);
 		}
 		
 	}

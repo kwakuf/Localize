@@ -28,8 +28,6 @@ import java.util.List;
  *
  */
 public class LocalizeService extends IntentService {
-
-	public int counter = 0;
 	/* These are the keys that will be used for bundles
 	 *  passed between this service and the calling activity via the messenger
 	 */
@@ -171,7 +169,6 @@ public class LocalizeService extends IntentService {
 	{
 		super.onDestroy();
 		this.unregisterReceiver(myReceiver);
-		//this.unregisterReceiver(myReceiver);
 		this.stopSelf();
 		
 	}
