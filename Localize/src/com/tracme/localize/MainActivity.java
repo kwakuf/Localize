@@ -32,11 +32,13 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 import android.widget.SeekBar.OnSeekBarChangeListener;
 
 /**
@@ -111,6 +113,12 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	private int numScans = 1;
 	private int numScansPending;
+	
+	public static final boolean POINT = true;
+	public static final boolean FOLLOW = false;
+	
+	private boolean mapState = POINT;
+	private boolean tempMap;	
 	
 	/****************** END *************************/
 	
@@ -287,11 +295,34 @@ public class MainActivity extends Activity implements OnTouchListener {
 						numScans = (numScansPending == 0) ? (1) : (numScansPending);
 						// Set the option for the next intent
 						options.setNumScans(numScans);
+						
+						mapState = tempMap;
 						dialog.dismiss();
 					}
 				}).setNeutralButton("Cancel", null).show();
 		SeekBar sbBetVal = (SeekBar) v.findViewById(R.id.sbBetVal);
 		tvBetVal = (TextView) v.findViewById(R.id.tvBetVal);
+		
+		ToggleButton tBut = (ToggleButton) v.findViewById(R.id.toggleButton1);
+		tBut.setChecked(mapState);
+		tBut.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+				if (isChecked) {
+					// The toggle is enabled
+					System.out.println("This is the first choice");
+					// THIS IS THE POINT OPTION
+					tempMap = POINT;
+					
+				}
+				else {
+					// The toggle is disabled
+					System.out.println("This is the second choice");
+					// THIS IS THE FOLLOW OPTION
+					tempMap = FOLLOW;
+				}
+			}
+		});
+		
 		sbBetVal.setMax(10);
 		sbBetVal.setProgress(numScans);
 		sbBetVal.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
