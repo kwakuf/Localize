@@ -171,8 +171,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 		@Override
 		public void handleMessage(Message msg)
 		{
-<<<<<<< HEAD
-=======
 			// Check if this is an initial load message from the initial load thread
 			if (msg.obj == LOAD_COMPLETE)
 			{
@@ -180,7 +178,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 				return;
 			}
 			
->>>>>>> 0fd10cc3a8339a73b6a1a807a5c7ac3f3dc299e1
 			//Receive the message and, using the information 
 			//received from the message, update the location of the user on the map 
 			if (msg.arg1 == RESULT_OK)
@@ -212,18 +209,11 @@ public class MainActivity extends Activity implements OnTouchListener {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);		
 		setContentView(R.layout.activity_main);
-		
-<<<<<<< HEAD
-		//initialProgBar = (ProgressBar) findViewById(R.id.progressBar1);
-		
-		// Set the max value of the progress bar to the number of classes that we must load
-		//initialProgBar.setMax(100);
-=======
+
 		initialProgBar = (ProgressBar) findViewById(R.id.initProgBar);
 		
 		// Set the max value of the progress bar to the number of classes that we must load
 		initialProgBar.setMax(nX+nY);
->>>>>>> 0fd10cc3a8339a73b6a1a807a5c7ac3f3dc299e1
 		
 		// Make instance of runnable class for initial load of models..
 		loadRunnable = new InitialLoadRunnable();
@@ -294,15 +284,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 					public void onClick(DialogInterface dialog, int which) {
 						// confirmValues();
 						// SAVE THE PROGRESS BAR VALUE SOMEWHERE
-<<<<<<< HEAD
 						numScans = (numScansPending == 0) ? (1) : (numScansPending);
 						// Set the option for the next intent
 						options.setNumScans(numScans);
-=======
-						numScans = (numScansPending == 0) ? (1) : (numScansPending);
-						// Set the option for the next intent
-						options.setNumScans(numScans);
->>>>>>> 0fd10cc3a8339a73b6a1a807a5c7ac3f3dc299e1
 						dialog.dismiss();
 					}
 				}).setNeutralButton("Cancel", null).show();
@@ -452,11 +436,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 	 */
 	private void initTraining()
 	{
-<<<<<<< HEAD
 		//initialProgBar.setVisibility(View.VISIBLE);
 		System.out.println("GOING TO ESTIMATE LOCATION...");
-=======
->>>>>>> 0fd10cc3a8339a73b6a1a807a5c7ac3f3dc299e1
 		localize = new TestingTask(rawFile, trainFile);
 		localize.setProgBar(initialProgBar);
 		
