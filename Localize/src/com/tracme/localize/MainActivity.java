@@ -58,7 +58,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	/******** TODO: HOW ARE WE GOING TO SET THESE? *******/
 	/* Name of the access point file */
-	String apfilename = "apcc1_76_nexus";;
+	String apfilename = "apcc1_76_cluster";;
 	
 	/* Options for localization (set these in settings) */
 	LocalizeOptions options;
@@ -66,7 +66,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/* Intent to start the LocalizeService */
 	Intent localizeIntent;
 	
-	private String rawFile = "cc1_76_nexus.txt"; // Name of the rawfile
+	private String rawFile = "cc1_76_cluster.txt"; // Name of the rawfile
 	private String trainFile = "train_p0.0.txt_sub_1.0.1.txt"; // Name of the training file
 	private int nX = 100; // Number of classes in x dimension
 	private int nY = 100; // Number of classes in y dimension
@@ -75,7 +75,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	AndroidLog localizationLog;
 	
 	/* Name of the localization log file */
-	String locLog = "loc_first_run";
+	String locLog = "loc_cluster_Aug9";
 	
 	/*********************END********************************/
 	
@@ -218,7 +218,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		// Initialize loading of the model classes (starts a new thread)
 		initTraining();
 		
-		Toast.makeText(this, "Localize", Toast.LENGTH_LONG)
+		Toast.makeText(this, "Localize", Toast.LENGTH_SHORT)
 		.show();	
 	}
 	
@@ -343,7 +343,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 			break;
 		case MotionEvent.ACTION_UP:
 		case MotionEvent.ACTION_POINTER_UP:
-			ld.checkEdgeCases(view);
+//			ld.checkEdgeCases(view);
 
 			ld.mode = LocalizeDisplay.NONE;
 			break;
@@ -375,8 +375,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 		localizeIntent.putExtra(LocalizeService.MESSENGER_KEY, messenger);
 		localizeIntent.putExtra(LocalizeService.OPTIONS_KEY, options);
 		localizeIntent.putExtra(LocalizeService.APTABLE_KEY, apTable);
-		localizeIntent.putExtra(LocalizeService.COUNT_KEY, count++);
-		Toast.makeText(this, "IntentService", Toast.LENGTH_LONG)
+		localizeIntent.putExtra(LocalizeService.COUNT_KEY, count);
+		Toast.makeText(this, "IntentService", Toast.LENGTH_SHORT)
 		.show();
 		startService(localizeIntent);
 	}
@@ -389,14 +389,14 @@ public class MainActivity extends Activity implements OnTouchListener {
 	 */
 	private void translatePoint(double[] prediction)
 	{
-		String res = "Predicted Location: " + prediction[0] + "," + prediction[1];
+		String res = "Predicted Location for run: " + count++ + ": "+ prediction[0] + "," + prediction[1];
 		localizationLog.save(res + "\n");
 		// Set the coord values to the predicted values
 		xCoord = (float)prediction[0];
 		yCoord = (float)prediction[1];
 		plotPoint(xCoord, yCoord);
 		Toast.makeText(MainActivity.this,
-				res, Toast.LENGTH_LONG)
+				res, Toast.LENGTH_SHORT)
 				.show();
 	}
 	
