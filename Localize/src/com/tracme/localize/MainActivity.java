@@ -59,10 +59,10 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/* Intent to start the LocalizeService */
 	Intent localizeIntent;
 	
-	private String rawFile = "cc1_76_nexus.txt"; // Name of the rawfile
+	private String rawFile = "cc1_76_cluster20.txt"; // Name of the rawfile
 	private String trainFile = "train_p0.0.txt_sub_1.0.1.txt"; // Name of the training file
-	private int nX = 30; // Number of classes in x dimension
-	private int nY = 30; // Number of classes in y dimension
+	private int nX = 100; // Number of classes in x dimension
+	private int nY = 100; // Number of classes in y dimension
 	
 	AndroidLog localizationLog;
 	
