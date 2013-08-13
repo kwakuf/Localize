@@ -1,5 +1,6 @@
 package com.tracme.localize;
 
+import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 
 import com.tracme.R;
@@ -58,7 +59,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	/******** TODO: HOW ARE WE GOING TO SET THESE? *******/
 	/* Name of the access point file */
-	String apfilename = "apcc1_76_cluster";;
+	String apfilename = "apcc1_76_cluster20";
 	
 	/* Options for localization (set these in settings) */
 	LocalizeOptions options;
@@ -66,7 +67,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/* Intent to start the LocalizeService */
 	Intent localizeIntent;
 	
-	private String rawFile = "cc1_76_cluster.txt"; // Name of the rawfile
+	private String rawFile = "cc1_76_cluster20.txt"; // Name of the rawfile
 	private String trainFile = "train_p0.0.txt_sub_1.0.1.txt"; // Name of the training file
 	private int nX = 100; // Number of classes in x dimension
 	private int nY = 100; // Number of classes in y dimension
@@ -75,7 +76,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	AndroidLog localizationLog;
 	
 	/* Name of the localization log file */
-	String locLog = "loc_cluster_Aug9";
+	String locLog = "loc_cluster_Aug13";
 	
 	/*********************END********************************/
 	
@@ -84,6 +85,12 @@ public class MainActivity extends Activity implements OnTouchListener {
 	public int count = 1;
 	
 	double[] prediction = new double[2]; // Prediction of the corresponding point
+	
+	/* Stored predictions used for averaging */
+	ArrayList <Double[]> predictions = new ArrayList <Double[]>();
+	
+	/* Counter for keep track of number of predictions done (used for averaging) */
+	private int predCounter = 1;
 	
 	/* Rssi values received from LocalizeService */
 	double[] rssis; 
@@ -185,10 +192,33 @@ public class MainActivity extends Activity implements OnTouchListener {
 				// Call to Training interface: Predict the location
 				prediction = localize.getEstLocation(rssis);
 				
-				translatePoint(prediction);
+				// Translate primitive double array to Double instance array
+				Double[] predToDouble = new Double[2];
+				predToDouble[0] = Double.valueOf(prediction[0]);
+				predToDouble[1] = Double.valueOf(prediction[1]);
+				
+				// Add the translated prediction to the array list
+				predictions.add(predToDouble);
+							
+				if (predCounter >= numScans)
+				{ // If number of predictions is equal to the number of scans, lets average
+					prediction = averagePredictions();
+					
+					// Translate the average predictions to a coordinate
+					translatePoint(prediction);
+					
+					// Reset prediction counter
+					predCounter = 1;
+				}
+				else if (predCounter < numScans)
+				{
+					Toast.makeText(MainActivity.this, "Add to average buffer", Toast.LENGTH_SHORT)
+					.show();
+					predCounter++;
+				}
 				
 				// Restart the service
-				initIntentService();
+				//initIntentService();
 						
 			}
 			else {
@@ -420,6 +450,34 @@ public class MainActivity extends Activity implements OnTouchListener {
 		// Create a Messenger for communication back and forth
 		messenger = new Messenger(sHandler);
 		
+	}
+	
+	/**
+	 * Average the predictions received from scanning and localizing
+	 * 
+	 */
+	//TODO: Synchronize with message handler so that predCounter will not change
+	private double[] averagePredictions()
+	{
+		double[] predictionAvg = new double[2];
+		double xPred = 0; // Prediction value in X direction
+		double yPred = 0; // Prediction value in Y direction
+		
+		// Go through each prediction in the array list and average
+		for (int i = 0; i < predCounter; i++)
+		{
+			xPred += predictions.get(i)[0];
+			yPred += predictions.get(i)[1];
+		}
+		
+		// Do the averaging
+		predictionAvg[0] = xPred / predCounter;
+		predictionAvg[1] = yPred / predCounter;
+		
+		// Reset the predictions array list
+		predictions.clear();
+		
+		return predictionAvg;
 	}
 	
 	/**
