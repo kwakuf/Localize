@@ -54,12 +54,15 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/* String passed to main thread specifying that load is complete */
 	public static final String LOAD_COMPLETE = "LoadComplete";
 	
+	/* String passed to main thread specifying that prediction thread is finished running */
+	public static final String PREDICTION_COMPLETE = "PredictComplete";
+	
 	/* Access point table object that holds all of the access points */
 	APTable apTable;
 	
 	/******** TODO: HOW ARE WE GOING TO SET THESE? *******/
 	/* Name of the access point file */
-	String apfilename = "apcc1_76_cluster20";
+	String apfilename = "apcc1_76_nexus";
 	
 	/* Options for localization (set these in settings) */
 	LocalizeOptions options;
@@ -67,16 +70,22 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/* Intent to start the LocalizeService */
 	Intent localizeIntent;
 	
-	private String rawFile = "cc1_76_cluster20.txt"; // Name of the rawfile
+	private String rawFile = "cc1_76_nexus.txt"; // Name of the rawfile
 	private String trainFile = "train_p0.0.txt_sub_1.0.1.txt"; // Name of the training file
-	private int nX = 100; // Number of classes in x dimension
-	private int nY = 100; // Number of classes in y dimension
+	private int nX = 70; // Number of classes in x dimension
+	private int nY = 70; // Number of classes in y dimension
+	
+	/* Coefficient for average estimation location */
+	private double avgEstCoeff = 0.9;
+	
+	/* Coefficient for standard deviation */
+	private double stdDevCoeff = 0.9;
 	
 	/* Localization log that will record our results */
 	AndroidLog localizationLog;
 	
 	/* Name of the localization log file */
-	String locLog = "loc_cluster_Aug13";
+	String locLog = "loc_Aug16_70";//_correcttomaxrange_1stddev0.9";
 	
 	/*********************END********************************/
 	
@@ -98,6 +107,12 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/* Interface to localization classes provided by Dr. Tran */
 	private TestingTask localize;
 	
+	/* Previously predicted location */
+	private double[] prevPrediction = new double[2];
+	
+	/* Previously estimated standard deviation */
+	private double stdDevEst = 0;
+	
 	/***********************************************
 	 * Variables for the Image Manipulation aspect *
 	 *                                             *
@@ -110,7 +125,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	private LocalizeDisplay ld;
 	
-	private int numScans = 1;
+	private int numScans = 3;
 	private int numScansPending;
 	
 	/****************** END *************************/
@@ -129,6 +144,39 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	/* Messenger for receiving messages from other threads */
 	private Messenger messenger;
+	
+	/**
+	 * Nested runnable class that handles predicting the user's location and performing error
+	 * analysis/correction
+	 * 
+	 * @author Kwaku Farkye
+	 * 
+	 */
+	private class PredictionRunnable implements Runnable {
+		@Override
+		public void run()
+		{
+			try {
+				prediction = averagePredictions();
+				
+				// Dont error correct the first couple of runs
+				if (count >= 3)
+					errorCorrect(prediction); // Perform error correction
+				
+				// All done predicting, so lets send a message to the main thread
+				Message msg = Message.obtain();
+				// Tell the main thread we are done predicting
+				String predictResult = PREDICTION_COMPLETE;
+				msg.obj = predictResult;
+				// Send message and end run
+				messenger.send(msg);
+			} catch (Exception ex)
+			{
+				Log.e("PREDICT_THREAD", "Error while predicting");
+				ex.printStackTrace();
+			}
+		}
+	}
 	
 	/**
 	 * Nested runnable class that loads the localization classes/models and updates
@@ -176,6 +224,21 @@ public class MainActivity extends Activity implements OnTouchListener {
 			if (msg.obj == LOAD_COMPLETE)
 			{
 				initImageView();
+				localizationLog.save("-------- STARTING PREDICTION NUMBER " + count + " --------\n");
+				return;
+			}
+			
+			// Check if this is a message from the prediction thread
+			if (msg.obj == PREDICTION_COMPLETE)
+			{	
+				// Translate the prediction to a coordinate
+				translatePoint(prediction);
+				
+				// Reset prediction counter
+				predCounter = 1;
+				
+				// Restart the service
+				initIntentService();
 				return;
 			}
 			
@@ -196,29 +259,41 @@ public class MainActivity extends Activity implements OnTouchListener {
 				Double[] predToDouble = new Double[2];
 				predToDouble[0] = Double.valueOf(prediction[0]);
 				predToDouble[1] = Double.valueOf(prediction[1]);
-				
+				//Toast.makeText(MainActivity.this, "Predicted Vals: " + predToDouble[0] + ", " + predToDouble[1], Toast.LENGTH_SHORT)
+				//.show();
 				// Add the translated prediction to the array list
 				predictions.add(predToDouble);
 							
 				if (predCounter >= numScans)
 				{ // If number of predictions is equal to the number of scans, lets average
+					/*
 					prediction = averagePredictions();
 					
-					// Translate the average predictions to a coordinate
+					// Dont error correct the first couple of runs
+					if (count >= 3)
+						errorCorrect(prediction); // Perform error correction
+					
+					// Translate the prediction to a coordinate
 					translatePoint(prediction);
 					
 					// Reset prediction counter
 					predCounter = 1;
+					*/
+					PredictionRunnable prun = new PredictionRunnable();
+					Thread predictThread = new Thread(prun);
+					predictThread.start();
+					
+					return;
 				}
 				else if (predCounter < numScans)
 				{
-					Toast.makeText(MainActivity.this, "Add to average buffer", Toast.LENGTH_SHORT)
-					.show();
+				//	Toast.makeText(MainActivity.this, "Add to average buffer", Toast.LENGTH_SHORT)
+				//	.show();
 					predCounter++;
 				}
 				
 				// Restart the service
-				//initIntentService();
+				initIntentService();
 						
 			}
 			else {
@@ -250,6 +325,74 @@ public class MainActivity extends Activity implements OnTouchListener {
 		
 		Toast.makeText(this, "Localize", Toast.LENGTH_SHORT)
 		.show();	
+	}
+	
+	/**
+	 * Performs error correction on the predicted value and computes new values for error correction/analysis
+	 * 
+	 * @param prediction The predicted value computed after averaging
+	 * 
+	 */
+	private void errorCorrect(double[] tstprediction)
+	{
+		double[] correctedPrediction = new double[2];
+		double stdDev;
+		double euclX; // Euclidean distance x value
+		double euclY; // Euclidean distance y value
+		double euclTotal; // Actual Euclidean distance
+		
+		localizationLog.save("------Running Error Correction------\n");
+		
+		// Compute the adjusted/corrected prediction value
+		correctedPrediction[0] = (avgEstCoeff * tstprediction[0]) + ((1 - avgEstCoeff) * prevPrediction[0]);
+		correctedPrediction[1] = (avgEstCoeff * tstprediction[1]) + ((1 - avgEstCoeff) * prevPrediction[1]);
+		
+		localizationLog.save("Previous Prediction: " + prevPrediction[0] + "," + prevPrediction[1] + "\n");
+		localizationLog.save("Corrected Prediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
+		
+		// Compute Euclidean distance information
+		euclX = tstprediction[0] - correctedPrediction[0];
+		euclY = tstprediction[1] - correctedPrediction[1];
+		euclX *= euclX;
+		euclY *= euclY;
+		
+		localizationLog.save("Euclid Distance X: " + euclX + "\n");
+		localizationLog.save("Euclid Distance Y: " + euclY + "\n");
+		
+		euclTotal = Math.sqrt(euclY + euclX);
+		
+		localizationLog.save("Euclidean Total: " + euclTotal + "\n");
+		
+		// Compute standard deviation
+		stdDev = (stdDevCoeff * euclTotal) + ((1 - stdDevCoeff) * stdDevEst);
+		
+		localizationLog.save("Standard Deviation: " + stdDev + "\n");
+		
+		localizationLog.save("Values to Compare:\ncorrectedPrediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
+		localizationLog.save("Range Prediction: " + (prevPrediction[0] + (3 *stdDev)) + "," + (prevPrediction[1] + (3 *stdDev)) + "\n");
+		// Check if we are within a certain range
+		if (correctedPrediction[0] <= prevPrediction[0] + (3 *stdDev)
+				&& correctedPrediction[1] <= prevPrediction[1] + (3 *stdDev))
+		{
+			// CORRECT VALUE: We are within the range, so adjust the values
+			localizationLog.save("WITHIN RANGE, update previous prediction\n");
+			prevPrediction[0] = correctedPrediction[0];
+			prevPrediction[1] = correctedPrediction[1];
+			stdDevEst = stdDev;
+		}
+		else 
+		{
+			// THROWAWAY VALUE: Keep predicted value the same as the previous
+			localizationLog.save("NOT WITHIN RANGE, keep previous prediction the same\n");
+			prevPrediction[0] = prevPrediction[0] + (stdDev);
+			prevPrediction[1] = prevPrediction[1] + (stdDev);
+		}
+		
+		// Set our prediction to the value we deemed to be "Correct"
+		prediction[0] = prevPrediction[0];
+		prediction[1] = prevPrediction[1];
+		
+		return;
 	}
 	
 	/**
@@ -406,8 +549,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 		localizeIntent.putExtra(LocalizeService.OPTIONS_KEY, options);
 		localizeIntent.putExtra(LocalizeService.APTABLE_KEY, apTable);
 		localizeIntent.putExtra(LocalizeService.COUNT_KEY, count);
-		Toast.makeText(this, "IntentService", Toast.LENGTH_SHORT)
-		.show();
+		//Toast.makeText(this, "IntentService", Toast.LENGTH_SHORT)
+		//.show();
 		startService(localizeIntent);
 	}
 
@@ -419,15 +562,21 @@ public class MainActivity extends Activity implements OnTouchListener {
 	 */
 	private void translatePoint(double[] prediction)
 	{
-		String res = "Predicted Location for run: " + count++ + ": "+ prediction[0] + "," + prediction[1];
+		if (count < 3)
+		{
+			prevPrediction[0] = prediction[0];
+			prevPrediction[1] = prediction[1];
+		}
+		String res = "Predicted Location for run " + count++ + ": "+ prediction[0] + "," + prediction[1];
 		localizationLog.save(res + "\n");
 		// Set the coord values to the predicted values
 		xCoord = (float)prediction[0];
 		yCoord = (float)prediction[1];
 		plotPoint(xCoord, yCoord);
-		Toast.makeText(MainActivity.this,
-				res, Toast.LENGTH_SHORT)
-				.show();
+		//Toast.makeText(MainActivity.this,
+		//		res, Toast.LENGTH_SHORT)
+		//		.show();
+		localizationLog.save("-------- STARTING PREDICTION NUMBER " + count + " --------\n");
 	}
 	
 	/**
@@ -463,9 +612,14 @@ public class MainActivity extends Activity implements OnTouchListener {
 		double xPred = 0; // Prediction value in X direction
 		double yPred = 0; // Prediction value in Y direction
 		
+		localizationLog.save("------Averaging Predictions------\n");
+		
 		// Go through each prediction in the array list and average
-		for (int i = 0; i < predCounter; i++)
+		for (int i = 0; i < numScans; i++)
 		{
+			// Write to log file
+			localizationLog.save("Prediction " + i + ": " + predictions.get(i)[0] + "," + predictions.get(i)[1] + "\n");
+			// Sum prediction total
 			xPred += predictions.get(i)[0];
 			yPred += predictions.get(i)[1];
 		}
@@ -476,6 +630,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 		
 		// Reset the predictions array list
 		predictions.clear();
+		
+		// Write to log file
+		localizationLog.save("Average of prediction " + count + ": " + predictionAvg[0] + "," + predictionAvg[1] + "\n");
 		
 		return predictionAvg;
 	}

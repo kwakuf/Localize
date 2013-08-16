@@ -126,9 +126,9 @@ public class LocalizeService extends IntentService {
 			// Register the receiver so the wifi manager knows where to go once its done.
 			this.registerReceiver(myReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));	
 		
-			while (true)
-			{
-			
+			//while (true)
+			//{
+			//resetArray();
 			/***  TODO: Here is where we can loop multiple times in the case where the user wants more accuracy ****/ 
 			
 			// Start scanning and predicting
@@ -162,7 +162,7 @@ public class LocalizeService extends IntentService {
 			{
 				Log.w(getClass().getName(), "Exception sending message", e);
 			}
-			}
+			//}
 		}
 	}
 	
