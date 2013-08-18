@@ -36,6 +36,8 @@ public class LocalizeService extends IntentService {
 	public static final String APTABLE_KEY = "APTABLE";
 	public static final String SCANARRAY_KEY = "SCANARRAY";
 	public static final String COUNT_KEY = "COUNT";
+	public static final String TIME_KEY = "TIME";
+	public static final String DEBUG_KEY = "DEBUG";
 	
 	private APTable apTable;
 	public LocalizeOptions options;
@@ -50,6 +52,12 @@ public class LocalizeService extends IntentService {
 	double[] rssis;// = {33,32,34,25,26,23,22,19,16,17,15,16,12,9,13,11,11,12,33,26,26,25,24,18,19,16,84,17,16,15,14,11,14,10,11,9,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; //List of rssi values for each access point in the ap list
 	
 	double[] prediction = new double[2]; // Prediction of the corresponding point
+	
+	private long startTime;
+	private long endTime;
+	
+	/* Flag specifying whether we are in debug mode */
+	private boolean debugMode;
 	
 	/*** TODO: These fields should probably be passed to us by the activity in an object ***/
 	private String rawFile = "cc1_76_nexus.txt"; // Name of the rawfile
@@ -73,7 +81,7 @@ public class LocalizeService extends IntentService {
 			// Make sure we received signal scans..
 			if (intent.getAction().equals("android.net.wifi.SCAN_RESULTS"))
 			{
-				// Get each scan result and do an ap table lookup
+				// Get each scan result and do an Access Point Table lookup
 				List<ScanResult> results = myWifiManager.getScanResults();
 				for (ScanResult result : results)
 				{	
@@ -86,6 +94,9 @@ public class LocalizeService extends IntentService {
 					
 				}				
 			}
+			
+			if (debugMode)
+				endTime = System.nanoTime();
 		}
 	}
 	
@@ -131,6 +142,10 @@ public class LocalizeService extends IntentService {
 			//resetArray();
 			/***  TODO: Here is where we can loop multiple times in the case where the user wants more accuracy ****/ 
 			
+			// Test: Keep track of time it takes to scan and send message
+			if (debugMode)
+				startTime = System.nanoTime();
+			
 			// Start scanning and predicting
 			myWifiManager.startScan();
 			
@@ -153,6 +168,9 @@ public class LocalizeService extends IntentService {
 			// bundle the results up and send back to activity via a message/messenger
 			Bundle outData = new Bundle();
 			outData.putDoubleArray(LocalizeService.SCANARRAY_KEY, rssis);
+			
+			if (debugMode)
+				outData.putLong(LocalizeService.TIME_KEY, endTime - startTime);
 			
 			msg.setData(outData);
 			//msg.obj = outString;
@@ -198,6 +216,7 @@ public class LocalizeService extends IntentService {
 			apTable = (APTable)b.getParcelable(APTABLE_KEY);
 			options = (LocalizeOptions)b.get(OPTIONS_KEY);
 			count = (int)b.getInt(COUNT_KEY);
+			debugMode = (boolean)b.getBoolean(DEBUG_KEY);
 
 			return true;
 		}

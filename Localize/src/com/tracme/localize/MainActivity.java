@@ -20,6 +20,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.ShapeDrawable;
@@ -72,11 +73,11 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	private String rawFile = "cc1_76_nexus.txt"; // Name of the rawfile
 	private String trainFile = "train_p0.0.txt_sub_1.0.1.txt"; // Name of the training file
-	private int nX = 70; // Number of classes in x dimension
-	private int nY = 70; // Number of classes in y dimension
+	private int nX = 100; // Number of classes in x dimension
+	private int nY = 100; // Number of classes in y dimension
 	
 	/* Coefficient for average estimation location */
-	private double avgEstCoeff = 0.9;
+	private double avgEstCoeff = 0.8;
 	
 	/* Coefficient for standard deviation */
 	private double stdDevCoeff = 0.9;
@@ -85,15 +86,18 @@ public class MainActivity extends Activity implements OnTouchListener {
 	AndroidLog localizationLog;
 	
 	/* Name of the localization log file */
-	String locLog = "loc_Aug16_70";//_correcttomaxrange_1stddev0.9";
+	String locLog = "locAug18DBClust30_100Class";//_correcttomaxrange_1stddev0.9";
 	
 	/*********************END********************************/
 	
 	/* Progress Bar used to show initial loading of localization classes */
 	public ProgressBar initialProgBar;
+	
+	/* Counter that records the number of predictions done */
 	public int count = 1;
 	
-	double[] prediction = new double[2]; // Prediction of the corresponding point
+	/* Predicted value of the location we are currently in */
+	double[] prediction = new double[2];
 	
 	/* Stored predictions used for averaging */
 	ArrayList <Double[]> predictions = new ArrayList <Double[]>();
@@ -101,7 +105,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/* Counter for keep track of number of predictions done (used for averaging) */
 	private int predCounter = 1;
 	
-	/* Rssi values received from LocalizeService */
+	/* RSSI values received from LocalizeService */
 	double[] rssis; 
 	
 	/* Interface to localization classes provided by Dr. Tran */
@@ -113,6 +117,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/* Previously estimated standard deviation */
 	private double stdDevEst = 0;
 	
+	/* Factor for standard deviation radius of the previous prediction */
+	private int stdDevFactor = 3;
+	
 	/***********************************************
 	 * Variables for the Image Manipulation aspect *
 	 *                                             *
@@ -122,6 +129,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 	// Views for the Background Image and positioning Icon
 	private ImageView imgView;
 	private MyDrawableView myDView;
+	private MyDrawableView errView;
+	private MyDrawableView origView;
 	
 	private LocalizeDisplay ld;
 	
@@ -136,6 +145,21 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/* y coordinate for plotting on the image view */
 	protected float yCoord = 0;
 	
+	/* x coordinate for plotting the original predicted location */
+	protected float origX = 0;
+	
+	/* y coordinate for plotting the original predicted location */
+	protected float origY = 0;
+	
+	/* x coordinate for plotting the error corrected predicted location */
+	protected float errX = 0;
+	
+	/* y coordinate for plotting the error corrected predicted location */
+	protected float errY = 0;
+	
+	/* Flag specifying if the predicted location is within the range of the previous location */
+	private boolean withinRange = true;
+	
 	/* Runnable Thread used for initial loading of models and classes */
 	private InitialLoadRunnable loadRunnable;
 	
@@ -144,6 +168,18 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	/* Messenger for receiving messages from other threads */
 	private Messenger messenger;
+	
+	/* Flag specifying whether we are in debug mode */
+	private boolean debugMode = true;
+	
+	/* Start time for measuring the time a task takes */
+	//private long startTime;
+	
+	/* End time for measuring the time a task takes */
+	//private long endTime;
+	
+	/* Multiple to compute seconds from nanoseconds */
+	private long nanoMult = 1000000000;
 	
 	/**
 	 * Nested runnable class that handles predicting the user's location and performing error
@@ -170,6 +206,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 				msg.obj = predictResult;
 				// Send message and end run
 				messenger.send(msg);
+				
 			} catch (Exception ex)
 			{
 				Log.e("PREDICT_THREAD", "Error while predicting");
@@ -189,16 +226,31 @@ public class MainActivity extends Activity implements OnTouchListener {
 		@Override
 		public void run()
 		{
+			long startTime = 0;
+			long endTime = 0;
+			
 			try {
+				if (debugMode)
+					startTime = System.nanoTime();
+				
 				// Setup the model classes
 				localize.setNumClasses(nX, nY);
 				// Once models are loaded, send a message to the main thread
+				
+				if (debugMode)
+					endTime = System.nanoTime();
+				
 				Message msg = Message.obtain();
 				// Tell the main thread that we are done loading
 				String loadResult = LOAD_COMPLETE;
 				msg.obj = loadResult;
 				// Send the message and end our run
 				messenger.send(msg);
+				
+				if (debugMode)
+					localizationLog.save("Time taken to load X" + nX + ", Y" + nY + " classes: " +
+							((endTime - startTime) / nanoMult) + "." + ((endTime - startTime) % nanoMult) + " seconds\n" );
+				
 			} catch (Exception e)
 			{
 				Log.e("INITLOAD_THREAD", "Error while loading classees");
@@ -224,7 +276,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 			if (msg.obj == LOAD_COMPLETE)
 			{
 				initImageView();
-				localizationLog.save("-------- STARTING PREDICTION NUMBER " + count + " --------\n");
+				if (debugMode)
+					localizationLog.save("-------- STARTING PREDICTION NUMBER " + count + " --------\n");
+				
 				return;
 			}
 			
@@ -255,10 +309,23 @@ public class MainActivity extends Activity implements OnTouchListener {
 				// Call to Training interface: Predict the location
 				prediction = localize.getEstLocation(rssis);
 				
+				if (debugMode)
+				{
+					// TESTING: Plot the prediction location (blue icon)
+					origX = (float)prediction[0];
+					origY = (float)prediction[1];
+					plotOrigPoint(origX, origY);
+					
+					long totalScanTime = inData.getLong(LocalizeService.TIME_KEY);
+					localizationLog.save("Time taken for scan: " + (totalScanTime / nanoMult) + "." + ((totalScanTime) % nanoMult) + " seconds\n");
+				}
+				
 				// Translate primitive double array to Double instance array
 				Double[] predToDouble = new Double[2];
 				predToDouble[0] = Double.valueOf(prediction[0]);
 				predToDouble[1] = Double.valueOf(prediction[1]);
+				
+				
 				//Toast.makeText(MainActivity.this, "Predicted Vals: " + predToDouble[0] + ", " + predToDouble[1], Toast.LENGTH_SHORT)
 				//.show();
 				// Add the translated prediction to the array list
@@ -341,14 +408,18 @@ public class MainActivity extends Activity implements OnTouchListener {
 		double euclY; // Euclidean distance y value
 		double euclTotal; // Actual Euclidean distance
 		
-		localizationLog.save("------Running Error Correction------\n");
+		if (debugMode)
+			localizationLog.save("------Running Error Correction------\n");
 		
 		// Compute the adjusted/corrected prediction value
 		correctedPrediction[0] = (avgEstCoeff * tstprediction[0]) + ((1 - avgEstCoeff) * prevPrediction[0]);
 		correctedPrediction[1] = (avgEstCoeff * tstprediction[1]) + ((1 - avgEstCoeff) * prevPrediction[1]);
 		
-		localizationLog.save("Previous Prediction: " + prevPrediction[0] + "," + prevPrediction[1] + "\n");
-		localizationLog.save("Corrected Prediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
+		if (debugMode)
+		{
+			localizationLog.save("Previous Prediction: " + prevPrediction[0] + "," + prevPrediction[1] + "\n");
+			localizationLog.save("Corrected Prediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
+		}
 		
 		// Compute Euclidean distance information
 		euclX = tstprediction[0] - correctedPrediction[0];
@@ -356,36 +427,65 @@ public class MainActivity extends Activity implements OnTouchListener {
 		euclX *= euclX;
 		euclY *= euclY;
 		
-		localizationLog.save("Euclid Distance X: " + euclX + "\n");
-		localizationLog.save("Euclid Distance Y: " + euclY + "\n");
-		
+		if (debugMode)
+		{
+			localizationLog.save("Euclid Distance X: " + euclX + "\n");
+			localizationLog.save("Euclid Distance Y: " + euclY + "\n");
+		}
 		euclTotal = Math.sqrt(euclY + euclX);
 		
-		localizationLog.save("Euclidean Total: " + euclTotal + "\n");
+		if (debugMode)
+			localizationLog.save("Euclidean Total: " + euclTotal + "\n");
 		
 		// Compute standard deviation
 		stdDev = (stdDevCoeff * euclTotal) + ((1 - stdDevCoeff) * stdDevEst);
 		
-		localizationLog.save("Standard Deviation: " + stdDev + "\n");
+		if (debugMode)
+			localizationLog.save("Standard Deviation: " + stdDev + "\n");
 		
-		localizationLog.save("Values to Compare:\ncorrectedPrediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
-		localizationLog.save("Range Prediction: " + (prevPrediction[0] + (3 *stdDev)) + "," + (prevPrediction[1] + (3 *stdDev)) + "\n");
+		//localizationLog.save("Values to Compare:\ncorrectedPrediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
+		//localizationLog.save("Range Prediction: " + (prevPrediction[0] + (3 *stdDev)) + "," + (prevPrediction[1] + (3 *stdDev)) + "\n");
+		
+		// Compute euclidean distance between previous prediction and corrected prediction
+		euclX = (prevPrediction[0] - correctedPrediction[0]);
+		euclY = (prevPrediction[1] - correctedPrediction[1]);
+		euclX *= euclX;
+		euclY *= euclY;
+		
+		euclTotal = Math.sqrt(euclX + euclY);
+		
+		if (debugMode)
+			localizationLog.save("Euclidean Distance between corrected and previous: " + euclTotal + "\n");
+		
 		// Check if we are within a certain range
-		if (correctedPrediction[0] <= prevPrediction[0] + (3 *stdDev)
-				&& correctedPrediction[1] <= prevPrediction[1] + (3 *stdDev))
+		if (euclTotal <= (stdDevFactor *stdDev))
 		{
+			// Only decrease the standard deviation radius factor if it is more than 3
+			if (stdDevFactor > 3)
+			{
+				stdDevFactor /= 2;
+			}
+			
 			// CORRECT VALUE: We are within the range, so adjust the values
-			localizationLog.save("WITHIN RANGE, update previous prediction\n");
+			if (debugMode)
+				localizationLog.save("WITHIN RANGE, update previous prediction\n");
+			
 			prevPrediction[0] = correctedPrediction[0];
 			prevPrediction[1] = correctedPrediction[1];
 			stdDevEst = stdDev;
+			withinRange = true;
 		}
 		else 
 		{
+			stdDevFactor *= 2; // Double the standard deviation radius factor
 			// THROWAWAY VALUE: Keep predicted value the same as the previous
-			localizationLog.save("NOT WITHIN RANGE, keep previous prediction the same\n");
-			prevPrediction[0] = prevPrediction[0] + (stdDev);
-			prevPrediction[1] = prevPrediction[1] + (stdDev);
+			if (debugMode)
+				localizationLog.save("NOT WITHIN RANGE, keep previous prediction the same\n");
+			
+			// Set the corrected Prediction coordinate values
+			errX = (float)correctedPrediction[0];
+			errY = (float)correctedPrediction[1];
+			withinRange = false;
 		}
 		
 		// Set our prediction to the value we deemed to be "Correct"
@@ -409,6 +509,15 @@ public class MainActivity extends Activity implements OnTouchListener {
 		myDView = (MyDrawableView) findViewById(R.id.circleView1);
 		myDView.setVisibility(View.INVISIBLE);
 
+		
+		errView = (MyDrawableView) findViewById(R.id.circleViewErr);
+		errView.setVisibility(View.INVISIBLE);
+		errView.setDrawColor("Blue");
+		
+		origView = (MyDrawableView) findViewById(R.id.circleViewOrig);
+		origView.setVisibility(View.INVISIBLE);
+		origView.setDrawColor("Red");
+		
 		imgView.setOnTouchListener(this);
 		
 		// Initialize the first intent service and start it
@@ -534,6 +643,13 @@ public class MainActivity extends Activity implements OnTouchListener {
 
 		/* The point specified will be given by the localization function */
 		plotPoint(xCoord, yCoord);
+		
+		if (debugMode)
+			plotOrigPoint(origX, origY);
+		
+		if (!withinRange && debugMode)
+			plotErrPoint(errX, errY);
+		
 		view.setImageMatrix(ld.matrix);
 		return true;
 	}
@@ -549,8 +665,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 		localizeIntent.putExtra(LocalizeService.OPTIONS_KEY, options);
 		localizeIntent.putExtra(LocalizeService.APTABLE_KEY, apTable);
 		localizeIntent.putExtra(LocalizeService.COUNT_KEY, count);
-		//Toast.makeText(this, "IntentService", Toast.LENGTH_SHORT)
-		//.show();
+		localizeIntent.putExtra(LocalizeService.DEBUG_KEY, debugMode);
+		
 		startService(localizeIntent);
 	}
 
@@ -562,21 +678,34 @@ public class MainActivity extends Activity implements OnTouchListener {
 	 */
 	private void translatePoint(double[] prediction)
 	{
+		
 		if (count < 3)
 		{
 			prevPrediction[0] = prediction[0];
 			prevPrediction[1] = prediction[1];
 		}
-		String res = "Predicted Location for run " + count++ + ": "+ prediction[0] + "," + prediction[1];
-		localizationLog.save(res + "\n");
+		
+		if (debugMode)
+		{
+			String res = "Predicted Location for run " + count++ + ": "+ prediction[0] + "," + prediction[1];
+			localizationLog.save(res + "\n");
+		}
+		
 		// Set the coord values to the predicted values
 		xCoord = (float)prediction[0];
 		yCoord = (float)prediction[1];
+		
+		// Plot the point on the image
 		plotPoint(xCoord, yCoord);
-		//Toast.makeText(MainActivity.this,
-		//		res, Toast.LENGTH_SHORT)
-		//		.show();
-		localizationLog.save("-------- STARTING PREDICTION NUMBER " + count + " --------\n");
+		
+		if (debugMode)
+			plotOrigPoint(origX, origY);
+		
+		if (!withinRange && debugMode)
+			plotErrPoint(errX, errY);
+
+		if (debugMode)
+			localizationLog.save("-------- STARTING PREDICTION NUMBER " + count + " --------\n");
 	}
 	
 	/**
@@ -586,7 +715,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 	private void setInitialValues()
 	{
 		// Set up a localization log for testing/recording results
-		localizationLog = new AndroidLog(locLog + ".txt");
+		if (debugMode)
+			localizationLog = new AndroidLog(locLog + ".txt");
 		
 		// Load AP Table
 		apTable = new APTable(apfilename);
@@ -612,13 +742,16 @@ public class MainActivity extends Activity implements OnTouchListener {
 		double xPred = 0; // Prediction value in X direction
 		double yPred = 0; // Prediction value in Y direction
 		
-		localizationLog.save("------Averaging Predictions------\n");
+		if (debugMode)
+			localizationLog.save("------Averaging Predictions------\n");
 		
 		// Go through each prediction in the array list and average
 		for (int i = 0; i < numScans; i++)
 		{
-			// Write to log file
-			localizationLog.save("Prediction " + i + ": " + predictions.get(i)[0] + "," + predictions.get(i)[1] + "\n");
+			
+			if (debugMode)
+				localizationLog.save("Prediction " + i + ": " + predictions.get(i)[0] + "," + predictions.get(i)[1] + "\n");
+			
 			// Sum prediction total
 			xPred += predictions.get(i)[0];
 			yPred += predictions.get(i)[1];
@@ -631,15 +764,19 @@ public class MainActivity extends Activity implements OnTouchListener {
 		// Reset the predictions array list
 		predictions.clear();
 		
-		// Write to log file
-		localizationLog.save("Average of prediction " + count + ": " + predictionAvg[0] + "," + predictionAvg[1] + "\n");
+		if (debugMode)
+			localizationLog.save("Average of prediction " + count + ": " + predictionAvg[0] + "," + predictionAvg[1] + "\n");
+		
+		// Plot the averaged point on the image
+		//origX = (float)predictionAvg[0];
+		//origY = (float)predictionAvg[1];
 		
 		return predictionAvg;
 	}
 	
 	/**
 	 * Initialize the training interface and all that is necessary to predict a location
-	 *
+	 * Spawns a new thread to handle the loading of the classes/models
 	 * 
 	 */
 	private void initTraining()
@@ -651,8 +788,12 @@ public class MainActivity extends Activity implements OnTouchListener {
 		initialLoadThread.start();
 	}
 	
-	/*
-	 * Function that will plot the point correctly regardless of scale or position
+	/**
+	 * Plots the predicted point correctly on the image. Takes into consideration the scaling
+	 * and positioning of the image
+	 * 
+	 * @param x The predicted x coordinate
+	 * @param y The predicted y coordinate
 	 */
 	private void plotPoint(float x, float y) {
 		// TODO adjust for rotation
@@ -662,7 +803,42 @@ public class MainActivity extends Activity implements OnTouchListener {
 		myDView.setY(ld.getAdjustedY(y));
 		myDView.setVisibility(View.VISIBLE);
 		return;
-	}	
+	}
+	
+	
+	/**
+	 * Plots the adjusted/corrected predicted point correctly on the image. Takes into consideration the scaling
+	 * and positioning of the image. This method is only called when in debug mode.
+	 * 
+	 * @param x The predicted x coordinate
+	 * @param y The predicted y coordinate
+	 */
+	private void plotErrPoint(float x, float y) {
+		// TODO adjust for rotation
+
+		errView.setVisibility(View.INVISIBLE);
+		errView.setX(ld.getAdjustedX(x));
+		errView.setY(ld.getAdjustedY(y));
+		errView.setVisibility(View.VISIBLE);
+		return;
+	}
+	
+	/**
+	 * Plots the originally predicted point correctly on the image. Takes into consideration the scaling
+	 * and positioning of the image. This method is only called when in debug mode.
+	 * 
+	 * @param x The predicted x coordinate
+	 * @param y The predicted y coordinate
+	 */
+	private void plotOrigPoint(float x, float y) {
+		// TODO adjust for rotation
+
+		origView.setVisibility(View.INVISIBLE);
+		origView.setX(ld.getAdjustedX(x));
+		origView.setY(ld.getAdjustedY(y));
+		origView.setVisibility(View.VISIBLE);
+		return;
+	}
 }
 
 /*
@@ -695,6 +871,15 @@ class MyDrawableView extends View {
 		mDrawable = new ShapeDrawable(new OvalShape());
 		mDrawable.getPaint().setColor(0xff74AC23);
 		mDrawable.setBounds(x, y, x + width, y + height);
+	}
+	
+	public void setDrawColor(String color) {
+		if (color == "Blue")
+			mDrawable.getPaint().setColor(Color.BLUE);
+		else if (color == "Red")
+			mDrawable.getPaint().setColor(Color.RED);
+		
+		return;
 	}
 
 	protected void onDraw(Canvas canvas) {
