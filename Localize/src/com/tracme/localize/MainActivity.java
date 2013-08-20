@@ -57,6 +57,12 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	/* String passed to main thread specifying that prediction thread is finished running */
 	public static final String PREDICTION_COMPLETE = "PredictComplete";
+
+	/* TAG Given to log on error of initial thread */
+	public static final String INITLOAD_TAG = "INITLOAD_THREAD";
+	
+	/* TAG Given to log on error of prediction thread */
+	public static final String PREDICT_THREAD_TAG = "PREDICT_THREAD";
 	
 	/* Access point table object that holds all of the access points */
 	APTable apTable;
@@ -77,16 +83,16 @@ public class MainActivity extends Activity implements OnTouchListener {
 	private int nY = 100; // Number of classes in y dimension
 	
 	/* Coefficient for average estimation location */
-	private double avgEstCoeff = 0.8;
+	private double avgEstCoeff = 0.7;
 	
 	/* Coefficient for standard deviation */
-	private double stdDevCoeff = 0.9;
+	private double stdDevCoeff = 0.8;
 	
 	/* Localization log that will record our results */
-	AndroidLog localizationLog;
+	AndroidLog localizationLog = null;
 	
 	/* Name of the localization log file */
-	String locLog = "locAug18DBClust30_100Class";//_correcttomaxrange_1stddev0.9";
+	String locLog = "locAug19_class100_0.7";//_correcttomaxrange_1stddev0.9";
 	
 	/*********************END********************************/
 	
@@ -134,7 +140,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	private LocalizeDisplay ld;
 	
-	private int numScans = 3;
+	private int numScans = 5;
 	private int numScansPending;
 	
 	/****************** END *************************/
@@ -209,7 +215,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 				
 			} catch (Exception ex)
 			{
-				Log.e("PREDICT_THREAD", "Error while predicting");
+				Log.e(PREDICT_THREAD_TAG, "Error while predicting");
 				ex.printStackTrace();
 			}
 		}
@@ -253,7 +259,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 				
 			} catch (Exception e)
 			{
-				Log.e("INITLOAD_THREAD", "Error while loading classees");
+				Log.e(INITLOAD_TAG, "Error while loading classees");
 				e.printStackTrace();
 			}
 		}
@@ -312,9 +318,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 				if (debugMode)
 				{
 					// TESTING: Plot the prediction location (blue icon)
-					origX = (float)prediction[0];
-					origY = (float)prediction[1];
-					plotOrigPoint(origX, origY);
+					//origX = (float)prediction[0];
+					//origY = (float)prediction[1];
+					//plotOrigPoint(origX, origY);
 					
 					long totalScanTime = inData.getLong(LocalizeService.TIME_KEY);
 					localizationLog.save("Time taken for scan: " + (totalScanTime / nanoMult) + "." + ((totalScanTime) % nanoMult) + " seconds\n");
@@ -376,6 +382,12 @@ public class MainActivity extends Activity implements OnTouchListener {
 		super.onCreate(savedInstanceState);		
 		setContentView(R.layout.activity_main);
 		
+		if (debugMode && localizationLog != null)
+		{
+			localizationLog.save("Creating Activity again\n");
+			return;
+		}
+		
 		initialProgBar = (ProgressBar) findViewById(R.id.initProgBar);
 		
 		// Set the max value of the progress bar to the number of classes that we must load
@@ -394,105 +406,12 @@ public class MainActivity extends Activity implements OnTouchListener {
 		.show();	
 	}
 	
-	/**
-	 * Performs error correction on the predicted value and computes new values for error correction/analysis
-	 * 
-	 * @param prediction The predicted value computed after averaging
-	 * 
-	 */
-	private void errorCorrect(double[] tstprediction)
+	@Override
+	public void onSaveInstanceState(Bundle savedInstanceState)
 	{
-		double[] correctedPrediction = new double[2];
-		double stdDev;
-		double euclX; // Euclidean distance x value
-		double euclY; // Euclidean distance y value
-		double euclTotal; // Actual Euclidean distance
-		
+		System.out.println("Saving Instance state\n");
 		if (debugMode)
-			localizationLog.save("------Running Error Correction------\n");
-		
-		// Compute the adjusted/corrected prediction value
-		correctedPrediction[0] = (avgEstCoeff * tstprediction[0]) + ((1 - avgEstCoeff) * prevPrediction[0]);
-		correctedPrediction[1] = (avgEstCoeff * tstprediction[1]) + ((1 - avgEstCoeff) * prevPrediction[1]);
-		
-		if (debugMode)
-		{
-			localizationLog.save("Previous Prediction: " + prevPrediction[0] + "," + prevPrediction[1] + "\n");
-			localizationLog.save("Corrected Prediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
-		}
-		
-		// Compute Euclidean distance information
-		euclX = tstprediction[0] - correctedPrediction[0];
-		euclY = tstprediction[1] - correctedPrediction[1];
-		euclX *= euclX;
-		euclY *= euclY;
-		
-		if (debugMode)
-		{
-			localizationLog.save("Euclid Distance X: " + euclX + "\n");
-			localizationLog.save("Euclid Distance Y: " + euclY + "\n");
-		}
-		euclTotal = Math.sqrt(euclY + euclX);
-		
-		if (debugMode)
-			localizationLog.save("Euclidean Total: " + euclTotal + "\n");
-		
-		// Compute standard deviation
-		stdDev = (stdDevCoeff * euclTotal) + ((1 - stdDevCoeff) * stdDevEst);
-		
-		if (debugMode)
-			localizationLog.save("Standard Deviation: " + stdDev + "\n");
-		
-		//localizationLog.save("Values to Compare:\ncorrectedPrediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
-		//localizationLog.save("Range Prediction: " + (prevPrediction[0] + (3 *stdDev)) + "," + (prevPrediction[1] + (3 *stdDev)) + "\n");
-		
-		// Compute euclidean distance between previous prediction and corrected prediction
-		euclX = (prevPrediction[0] - correctedPrediction[0]);
-		euclY = (prevPrediction[1] - correctedPrediction[1]);
-		euclX *= euclX;
-		euclY *= euclY;
-		
-		euclTotal = Math.sqrt(euclX + euclY);
-		
-		if (debugMode)
-			localizationLog.save("Euclidean Distance between corrected and previous: " + euclTotal + "\n");
-		
-		// Check if we are within a certain range
-		if (euclTotal <= (stdDevFactor *stdDev))
-		{
-			// Only decrease the standard deviation radius factor if it is more than 3
-			if (stdDevFactor > 3)
-			{
-				stdDevFactor /= 2;
-			}
-			
-			// CORRECT VALUE: We are within the range, so adjust the values
-			if (debugMode)
-				localizationLog.save("WITHIN RANGE, update previous prediction\n");
-			
-			prevPrediction[0] = correctedPrediction[0];
-			prevPrediction[1] = correctedPrediction[1];
-			stdDevEst = stdDev;
-			withinRange = true;
-		}
-		else 
-		{
-			stdDevFactor *= 2; // Double the standard deviation radius factor
-			// THROWAWAY VALUE: Keep predicted value the same as the previous
-			if (debugMode)
-				localizationLog.save("NOT WITHIN RANGE, keep previous prediction the same\n");
-			
-			// Set the corrected Prediction coordinate values
-			errX = (float)correctedPrediction[0];
-			errY = (float)correctedPrediction[1];
-			withinRange = false;
-		}
-		
-		// Set our prediction to the value we deemed to be "Correct"
-		prediction[0] = prevPrediction[0];
-		prediction[1] = prevPrediction[1];
-		
-		return;
+			localizationLog.save("Save Instance State called\n");
 	}
 	
 	/**
@@ -645,10 +564,11 @@ public class MainActivity extends Activity implements OnTouchListener {
 		plotPoint(xCoord, yCoord);
 		
 		if (debugMode)
+		{
 			plotOrigPoint(origX, origY);
-		
-		if (!withinRange && debugMode)
-			plotErrPoint(errX, errY);
+			if (!withinRange)
+				plotErrPoint(errX, errY);
+		}
 		
 		view.setImageMatrix(ld.matrix);
 		return true;
@@ -732,29 +652,134 @@ public class MainActivity extends Activity implements OnTouchListener {
 	}
 	
 	/**
+	 * Performs error correction on the predicted value and computes new values for error correction/analysis
+	 * 
+	 * @param prediction The predicted value computed after averaging
+	 * 
+	 */
+	private void errorCorrect(double[] tstprediction)
+	{
+		double[] correctedPrediction = new double[2];
+		double stdDev;
+		//double euclX; // Euclidean distance x value
+		//double euclY; // Euclidean distance y value
+		double euclTotal; // Actual Euclidean distance
+		
+		if (debugMode)
+			localizationLog.save("------Running Error Correction------\n");
+		
+		// Compute the adjusted/corrected prediction value
+		//correctedPrediction[0] = (avgEstCoeff * tstprediction[0]) + ((1 - avgEstCoeff) * prevPrediction[0]);
+		//correctedPrediction[1] = (avgEstCoeff * tstprediction[1]) + ((1 - avgEstCoeff) * prevPrediction[1]);
+		
+		correctedPrediction = computeWeightedPoint(tstprediction, prevPrediction, avgEstCoeff);
+		
+		if (debugMode)
+		{
+			localizationLog.save("Previous Prediction: " + prevPrediction[0] + "," + prevPrediction[1] + "\n");
+			localizationLog.save("Corrected Prediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
+		}
+		
+		// Compute Euclidean distance information
+		//euclX = tstprediction[0] - correctedPrediction[0];
+		//euclY = tstprediction[1] - correctedPrediction[1];
+		//euclX *= euclX;
+		//euclY *= euclY;
+		
+		euclTotal = computeEuclidean(tstprediction, correctedPrediction);
+		
+		if (debugMode)
+			localizationLog.save("Euclidean Total: " + euclTotal + "\n");
+		
+		// Compute standard deviation
+		stdDev = (stdDevCoeff * euclTotal) + ((1 - stdDevCoeff) * stdDevEst);
+		
+		if (debugMode)
+			localizationLog.save("Standard Deviation: " + stdDev + "\n");
+		
+		//localizationLog.save("Values to Compare:\ncorrectedPrediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
+		//localizationLog.save("Range Prediction: " + (prevPrediction[0] + (3 *stdDev)) + "," + (prevPrediction[1] + (3 *stdDev)) + "\n");
+		
+		// Compute euclidean distance between previous prediction and corrected prediction
+		//euclX = (prevPrediction[0] - correctedPrediction[0]);
+		//euclY = (prevPrediction[1] - correctedPrediction[1]);
+		//euclX *= euclX;
+		//euclY *= euclY;
+		
+		euclTotal = computeEuclidean(prevPrediction, correctedPrediction);
+		
+		if (debugMode)
+			localizationLog.save("Euclidean Distance between corrected and previous: " + euclTotal + "\n");
+		
+		// Check if we are within a certain range
+		if (euclTotal <= (stdDevFactor *stdDev))
+		{
+			// Only decrease the standard deviation radius factor if it is more than 3
+			if (stdDevFactor > 3)
+				stdDevFactor /= 2;
+			
+			// CORRECT VALUE: We are within the range, so adjust the values
+			if (debugMode)
+				localizationLog.save("WITHIN RANGE, update previous prediction\n");
+			
+			prevPrediction[0] = correctedPrediction[0];
+			prevPrediction[1] = correctedPrediction[1];
+			stdDevEst = stdDev;
+			withinRange = true;
+		}
+		else 
+		{
+			stdDevFactor *= 2; // Double the standard deviation radius factor
+			// THROWAWAY VALUE: Keep predicted value the same as the previous
+			if (debugMode)
+				localizationLog.save("NOT WITHIN RANGE, keep previous prediction the same\n");
+			
+			// Set the corrected Prediction coordinate values
+			errX = (float)correctedPrediction[0];
+			errY = (float)correctedPrediction[1];
+			withinRange = false;
+		}
+		
+		// Set our prediction to the value we deemed to be "Correct"
+		prediction[0] = prevPrediction[0];
+		prediction[1] = prevPrediction[1];
+		
+		return;
+	}
+	
+	/**
 	 * Average the predictions received from scanning and localizing
 	 * 
 	 */
 	//TODO: Synchronize with message handler so that predCounter will not change
 	private double[] averagePredictions()
 	{
-		double[] predictionAvg = new double[2];
+		double[] predictionAvg = new double[2]; // Returned average prediction
+		ArrayList<Double[]> adjustedPredictions;
 		double xPred = 0; // Prediction value in X direction
 		double yPred = 0; // Prediction value in Y direction
+		
+		// Only start excluding outliers after the third run of predictions
+		if (count >= 3)
+			adjustedPredictions = findPredictionsInRange(predictions);
+		else
+			adjustedPredictions = predictions;
 		
 		if (debugMode)
 			localizationLog.save("------Averaging Predictions------\n");
 		
-		// Go through each prediction in the array list and average
-		for (int i = 0; i < numScans; i++)
-		{
-			
+		// Go through each prediction in the adjusted array list and average
+		for (int i = 0; i < adjustedPredictions.size(); i++)
+		{	
 			if (debugMode)
-				localizationLog.save("Prediction " + i + ": " + predictions.get(i)[0] + "," + predictions.get(i)[1] + "\n");
+			{
+				localizationLog.save("Prediction " + i + ": " + adjustedPredictions.get(i)[0] + "," 
+						+ adjustedPredictions.get(i)[1] + "\n");
+			}
 			
 			// Sum prediction total
-			xPred += predictions.get(i)[0];
-			yPred += predictions.get(i)[1];
+			xPred += adjustedPredictions.get(i)[0];
+			yPred += adjustedPredictions.get(i)[1];
 		}
 		
 		// Do the averaging
@@ -768,10 +793,118 @@ public class MainActivity extends Activity implements OnTouchListener {
 			localizationLog.save("Average of prediction " + count + ": " + predictionAvg[0] + "," + predictionAvg[1] + "\n");
 		
 		// Plot the averaged point on the image
-		//origX = (float)predictionAvg[0];
-		//origY = (float)predictionAvg[1];
+		origX = (float)predictionAvg[0];
+		origY = (float)predictionAvg[1];
 		
 		return predictionAvg;
+	}
+	
+	/**
+	 * Finds the predictions/points that fall within the range of a reference prediction/point
+	 * 
+	 * @param rawPredictions The list of original predictions
+	 * 
+	 * @return A list of predictions that fall within the computed range
+	 */
+	private ArrayList<Double[]> findPredictionsInRange(ArrayList<Double[]> rawPredictions)
+	{
+		double refPtEuclDistance = -1, compEuclDistance = 0;
+		double[] thisPrediction = new double[2];
+		double[] refPrediction = new double[2];
+		ArrayList<Double[]> newPredictionsList = new ArrayList<Double[]>();
+		int refPtIndex = 0; // Index in the array list of our reference point/prediction
+		
+		if (debugMode)
+			localizationLog.save("--- Removing Extraneous Predictions ---\n");
+		
+		for (int i = 0; i < rawPredictions.size(); i++)
+		{
+			// Turn into primitive double array
+			thisPrediction[0] = rawPredictions.get(i)[0].doubleValue();
+			thisPrediction[1] = rawPredictions.get(i)[1].doubleValue();
+			
+			if (debugMode)
+				localizationLog.save("Prediction " + i + ": " + thisPrediction[0] + "," + thisPrediction[1] + "\n");
+			
+			// Find the euclidean distance between this point and previous predicted point
+			compEuclDistance = computeEuclidean(thisPrediction, prevPrediction);
+			
+			// Find the point/prediction with the shortest distance from the previously predicted location
+			if (refPtEuclDistance == -1 || compEuclDistance < refPtEuclDistance)
+			{
+				refPtEuclDistance = compEuclDistance;
+				refPtIndex = i; // Record this index for later
+			}
+		}
+		
+		if (debugMode)
+			localizationLog.save("Prediction using for reference point: " + refPtIndex + ", Euclidean Distance: " + refPtEuclDistance + "\n");
+		
+		// Set our reference point/prediction
+		refPrediction[0] = rawPredictions.get(refPtIndex)[0].doubleValue();
+		refPrediction[1] = rawPredictions.get(refPtIndex)[1].doubleValue();
+		
+		// Now lets pass through and see what predictions can be excluded
+		for (int i = 0; i < rawPredictions.size(); i++)
+		{
+			thisPrediction[0] = rawPredictions.get(i)[0].doubleValue();
+			thisPrediction[1] = rawPredictions.get(i)[1].doubleValue();
+			
+			compEuclDistance = computeEuclidean(thisPrediction, refPrediction);
+			
+			// If the distance between this point and our reference point
+			// is less than the twice the distance between the reference point and the previous prediction
+			// then add the point to our new predictions list
+			if (compEuclDistance <= (2 * refPtEuclDistance))
+			{
+				newPredictionsList.add(rawPredictions.get(i));
+			}
+		}
+		
+		return newPredictionsList;
+	}
+	
+	/**
+	 * Computes a corrected point based off of two points in the coordinate system
+	 * 
+	 * @param heavyPoint The point that will get the most weight
+	 * @param lightWeight The point that will get the least amount of weight
+	 * @param weight The weight that the heavy point will receive
+	 * 
+	 * @return The weighted point
+	 */
+	private static double[] computeWeightedPoint(double[] heavyPoint, double[] lightPoint, double weight)
+	{
+		double[] weightedPrediction = new double[2];
+		
+		// Compute the adjusted/corrected prediction value
+		weightedPrediction[0] = (weight * heavyPoint[0]) + ((1 - weight) * lightPoint[0]);
+		weightedPrediction[1] = (weight * heavyPoint[1]) + ((1 - weight) * lightPoint[1]);
+		
+		return weightedPrediction;
+	}
+	
+	/**
+	 * Computes the euclidean distance between two points
+	 * 
+	 * @param point1 The first point used in the calculation
+	 * @param point2 The second point used in the calculation
+	 * 
+	 * @return The euclidean distance between point 1 and point 2
+	 */
+	private static double computeEuclidean(double[] point1, double[] point2)
+	{
+		double euclX, euclY, euclTotal;
+		
+		euclX = point2[0] - point1[0];
+		euclY = point2[1] - point1[1];
+		
+		euclX *= euclX;
+		euclY *= euclY;
+		
+		euclTotal = Math.sqrt(euclX + euclY);
+		
+		return euclTotal;
 	}
 	
 	/**
