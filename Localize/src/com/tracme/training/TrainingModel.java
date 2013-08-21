@@ -15,7 +15,11 @@ import com.tracme.util.*;
 
 
 	
-public	class TrainingModel {
+public	class TrainingModel implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3955216371610525127L;
 	public int total_sv; // number of support vectors	
 	public double training_accuracy; // accuracy of SVM training
 	
@@ -27,7 +31,6 @@ public	class TrainingModel {
 	private String label; // list of labels in sv_list; label can be "-1" (when all samples are negative), "1" (all samples are positive), or "1 -1" (mix)
 	private double lo, hi; // low and high bounds for scaling
 	private double [][] attrRange; // range of each attribute in a sample
-		
 	
 		
 	TrainingModel(String trainFile1, int numAnchors1){

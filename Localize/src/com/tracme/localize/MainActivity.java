@@ -1,5 +1,6 @@
 package com.tracme.localize;
 
+import java.io.*;
 import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 
@@ -52,19 +53,19 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
  */
 public class MainActivity extends Activity implements OnTouchListener {
 	
-	/* String passed to main thread specifying that load is complete */
+	/** String passed to main thread specifying that load is complete */
 	public static final String LOAD_COMPLETE = "LoadComplete";
 	
-	/* String passed to main thread specifying that prediction thread is finished running */
+	/** String passed to main thread specifying that prediction thread is finished running */
 	public static final String PREDICTION_COMPLETE = "PredictComplete";
 
-	/* TAG Given to log on error of initial thread */
+	/** TAG Given to log on error of initial thread */
 	public static final String INITLOAD_TAG = "INITLOAD_THREAD";
 	
-	/* TAG Given to log on error of prediction thread */
+	/** TAG Given to log on error of prediction thread */
 	public static final String PREDICT_THREAD_TAG = "PREDICT_THREAD";
 	
-	/* Access point table object that holds all of the access points */
+	/** Access point table object that holds all of the access points */
 	APTable apTable;
 	
 	/******** TODO: HOW ARE WE GOING TO SET THESE? *******/
@@ -82,48 +83,48 @@ public class MainActivity extends Activity implements OnTouchListener {
 	private int nX = 100; // Number of classes in x dimension
 	private int nY = 100; // Number of classes in y dimension
 	
-	/* Coefficient for average estimation location */
+	/** Coefficient for average estimation location */
 	private double avgEstCoeff = 0.7;
 	
-	/* Coefficient for standard deviation */
+	/** Coefficient for standard deviation */
 	private double stdDevCoeff = 0.8;
 	
-	/* Localization log that will record our results */
+	/** Localization log that will record our results */
 	AndroidLog localizationLog = null;
 	
-	/* Name of the localization log file */
-	String locLog = "locAug19_class100_0.7";//_correcttomaxrange_1stddev0.9";
+	/** Name of the localization log file */
+	String locLog = "locPersistTest";//_correcttomaxrange_1stddev0.9";
 	
 	/*********************END********************************/
 	
-	/* Progress Bar used to show initial loading of localization classes */
+	/** Progress Bar used to show initial loading of localization classes */
 	public ProgressBar initialProgBar;
 	
-	/* Counter that records the number of predictions done */
+	/** Counter that records the number of predictions done */
 	public int count = 1;
 	
-	/* Predicted value of the location we are currently in */
+	/** Predicted value of the location we are currently in */
 	double[] prediction = new double[2];
 	
-	/* Stored predictions used for averaging */
+	/** Stored predictions used for averaging */
 	ArrayList <Double[]> predictions = new ArrayList <Double[]>();
 	
-	/* Counter for keep track of number of predictions done (used for averaging) */
+	/** Counter for keep track of number of predictions done (used for averaging) */
 	private int predCounter = 1;
 	
-	/* RSSI values received from LocalizeService */
+	/** RSSI values received from LocalizeService */
 	double[] rssis; 
 	
-	/* Interface to localization classes provided by Dr. Tran */
+	/** Interface to localization classes provided by Dr. Tran */
 	private TestingTask localize;
 	
-	/* Previously predicted location */
+	/** Previously predicted location */
 	private double[] prevPrediction = new double[2];
 	
-	/* Previously estimated standard deviation */
+	/** Previously estimated standard deviation */
 	private double stdDevEst = 0;
 	
-	/* Factor for standard deviation radius of the previous prediction */
+	/** Factor for standard deviation radius of the previous prediction */
 	private int stdDevFactor = 3;
 	
 	/***********************************************
@@ -145,47 +146,49 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	/****************** END *************************/
 	
-	/* x coordinate for plotting on the image view */
+	/** x coordinate for plotting on the image view */
 	protected float xCoord = 0;
 	
-	/* y coordinate for plotting on the image view */
+	/** y coordinate for plotting on the image view */
 	protected float yCoord = 0;
 	
-	/* x coordinate for plotting the original predicted location */
+	/** x coordinate for plotting the original predicted location */
 	protected float origX = 0;
 	
-	/* y coordinate for plotting the original predicted location */
+	/** y coordinate for plotting the original predicted location */
 	protected float origY = 0;
 	
-	/* x coordinate for plotting the error corrected predicted location */
+	/** x coordinate for plotting the error corrected predicted location */
 	protected float errX = 0;
 	
-	/* y coordinate for plotting the error corrected predicted location */
+	/** y coordinate for plotting the error corrected predicted location */
 	protected float errY = 0;
 	
-	/* Flag specifying if the predicted location is within the range of the previous location */
+	/** Flag specifying if the predicted location is within the range of the previous location */
 	private boolean withinRange = true;
 	
-	/* Runnable Thread used for initial loading of models and classes */
+	/** Runnable Thread used for initial loading of models and classes */
 	private InitialLoadRunnable loadRunnable;
 	
-	/* Instance of our scan handler to handle incoming messages */
+	/** Instance of our scan handler to handle incoming messages */
 	private ScanHandler sHandler = new ScanHandler();
 	
-	/* Messenger for receiving messages from other threads */
+	/** Messenger for receiving messages from other threads */
 	private Messenger messenger;
 	
-	/* Flag specifying whether we are in debug mode */
+	/** Flag specifying whether we are in debug mode */
 	private boolean debugMode = true;
 	
-	/* Start time for measuring the time a task takes */
-	//private long startTime;
-	
-	/* End time for measuring the time a task takes */
-	//private long endTime;
-	
-	/* Multiple to compute seconds from nanoseconds */
+	/** Multiple to compute seconds from nanoseconds */
 	private long nanoMult = 1000000000;
+	
+	/** Flag specifying whether our localization data has been written to storage yet */
+	private boolean writtenToStorage = false;
+	
+	/** Flag specifying that initial loading is complete. This flag is used to let us know that
+	 * the localization data can be stored
+	 */
+	private boolean finishedLoading = false;
 	
 	/**
 	 * Nested runnable class that handles predicting the user's location and performing error
@@ -194,14 +197,15 @@ public class MainActivity extends Activity implements OnTouchListener {
 	 * @author Kwaku Farkye
 	 * 
 	 */
-	private class PredictionRunnable implements Runnable {
+	private class PredictionRunnable implements Runnable 
+	{
 		@Override
 		public void run()
 		{
 			try {
 				prediction = averagePredictions();
 				
-				// Dont error correct the first couple of runs
+				// Don't error correct the first couple of runs
 				if (count >= 3)
 					errorCorrect(prediction); // Perform error correction
 				
@@ -222,13 +226,46 @@ public class MainActivity extends Activity implements OnTouchListener {
 	}
 	
 	/**
+	 * Nested runnable class that saves localization data, cutting down load times on future
+	 * runs of the application
+	 * 
+	 * @author Kwaku Farkye
+	 *
+	 */
+	private class PersistenceRunnable implements Runnable
+	{
+		@Override
+		public void run()
+		{
+			long startTime = System.nanoTime();
+			
+			if (saveLocalizeData())
+			{
+				if (debugMode)
+				{
+					long endTime = System.nanoTime();
+					localizationLog.save("Saved localization data via persistence runnable \n");
+					localizationLog.save("Time taken to save log: " + 
+							((endTime - startTime) / nanoMult) + "." + ((endTime - startTime) % nanoMult) + " seconds\n" );	
+				}
+			}
+			else
+			{
+				if (debugMode)
+					localizationLog.save("Unable to save localization data\n");
+			}
+		}
+	}
+	
+	/**
 	 * Nested runnable class that loads the localization classes/models and updates
 	 * the progress bar on the UI thread while doing so.
 	 * 
 	 * @author Kwaku Farkye
 	 *
 	 */
-	private class InitialLoadRunnable implements Runnable {
+	private class InitialLoadRunnable implements Runnable
+	{
 		@Override
 		public void run()
 		{
@@ -240,11 +277,13 @@ public class MainActivity extends Activity implements OnTouchListener {
 					startTime = System.nanoTime();
 				
 				// Setup the model classes
-				localize.setNumClasses(nX, nY);
+				localize.setNumClasses(nX, nY, initialProgBar);
 				// Once models are loaded, send a message to the main thread
 				
 				if (debugMode)
 					endTime = System.nanoTime();
+				
+				finishedLoading = true;
 				
 				Message msg = Message.obtain();
 				// Tell the main thread that we are done loading
@@ -266,8 +305,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 	}
 	
 	/**
-	 *  Nested Handler class for message communication between main activity and other threads/services
-	 *  started by the activity
+	 * Nested Handler class for message communication between main activity and other threads/services
+	 * started by the activity
 	 *  
 	 */
 	private class ScanHandler extends Handler {	
@@ -284,6 +323,10 @@ public class MainActivity extends Activity implements OnTouchListener {
 				initImageView();
 				if (debugMode)
 					localizationLog.save("-------- STARTING PREDICTION NUMBER " + count + " --------\n");
+				
+				PersistenceRunnable pr = new PersistenceRunnable();
+				Thread storeThread = new Thread(pr);
+				storeThread.start();
 				
 				return;
 			}
@@ -318,9 +361,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 				if (debugMode)
 				{
 					// TESTING: Plot the prediction location (blue icon)
-					//origX = (float)prediction[0];
-					//origY = (float)prediction[1];
-					//plotOrigPoint(origX, origY);
+					origX = (float)prediction[0];
+					origY = (float)prediction[1];
+					plotOrigPoint(origX, origY);
 					
 					long totalScanTime = inData.getLong(LocalizeService.TIME_KEY);
 					localizationLog.save("Time taken for scan: " + (totalScanTime / nanoMult) + "." + ((totalScanTime) % nanoMult) + " seconds\n");
@@ -380,30 +423,48 @@ public class MainActivity extends Activity implements OnTouchListener {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);		
-		setContentView(R.layout.activity_main);
 		
-		if (debugMode && localizationLog != null)
+		long startTime = System.nanoTime();
+		
+		if (loadLocalizeData())
 		{
-			localizationLog.save("Creating Activity again\n");
-			return;
+			long endTime = System.nanoTime();			
+			setInitialValues();
+			
+			if (debugMode)
+			{
+				localizationLog.save("Time taken to load localization info: " + 
+						((endTime - startTime) / nanoMult) + "." + ((endTime - startTime) % nanoMult) + " seconds\n" );
+			}
+			
+			initImageView();
+			
+			if (debugMode)
+				localizationLog.save("-------- STARTING PREDICTION NUMBER " + count + " --------\n");
+			
+			Toast.makeText(this, "Loaded Persistent Data", Toast.LENGTH_SHORT)
+			.show();
 		}
-		
-		initialProgBar = (ProgressBar) findViewById(R.id.initProgBar);
-		
-		// Set the max value of the progress bar to the number of classes that we must load
-		initialProgBar.setMax(nX+nY);
-		
-		// Make instance of runnable class for initial load of models..
-		loadRunnable = new InitialLoadRunnable();
-
-		// Set the initial values needed for this run
-		setInitialValues();
-		
-		// Initialize loading of the model classes (starts a new thread)
-		initTraining();
-		
-		Toast.makeText(this, "Localize", Toast.LENGTH_SHORT)
-		.show();	
+		else
+		{
+			setContentView(R.layout.activity_main);
+			initialProgBar = (ProgressBar) findViewById(R.id.initProgBar);
+			
+			// Set the max value of the progress bar to the number of classes that we must load
+			initialProgBar.setMax(nX+nY);
+			
+			// Make instance of runnable class for initial load of models..
+			loadRunnable = new InitialLoadRunnable();
+	
+			// Set the initial values needed for this run
+			setInitialValues();
+			
+			// Initialize loading of the model classes (starts a new thread)
+			initTraining();
+			
+			Toast.makeText(this, "Localize", Toast.LENGTH_SHORT)
+			.show();
+		}
 	}
 	
 	@Override
@@ -513,7 +574,18 @@ public class MainActivity extends Activity implements OnTouchListener {
 	}
 	
 	@Override
-	public void onDestroy()
+	protected void onStop()
+	{
+		super.onStop();
+		if (!writtenToStorage && finishedLoading)
+		{
+			localizationLog.save("ABOUT TO SAVE DATA\n");
+			saveLocalizeData(); // Save the localization data if we haven't already
+		}
+	}
+	
+	@Override
+	protected void onDestroy()
 	{
 		super.onDestroy();
 		stopService(localizeIntent);
@@ -566,7 +638,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		if (debugMode)
 		{
 			plotOrigPoint(origX, origY);
-			if (!withinRange)
+			if (withinRange)
 				plotErrPoint(errX, errY);
 		}
 		
@@ -615,14 +687,14 @@ public class MainActivity extends Activity implements OnTouchListener {
 		xCoord = (float)prediction[0];
 		yCoord = (float)prediction[1];
 		
-		// Plot the point on the image
-		plotPoint(xCoord, yCoord);
+		//if (debugMode)
+		//	plotOrigPoint(origX + 100, origY + 100);
 		
-		if (debugMode)
-			plotOrigPoint(origX, origY);
-		
-		if (!withinRange && debugMode)
+		if (withinRange && debugMode)
 			plotErrPoint(errX, errY);
+		
+		// Plot the point on the image
+		plotPoint(xCoord,yCoord);
 
 		if (debugMode)
 			localizationLog.save("-------- STARTING PREDICTION NUMBER " + count + " --------\n");
@@ -750,6 +822,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/**
 	 * Average the predictions received from scanning and localizing
 	 * 
+	 * @return A double array consisting of the averaged prediction value
 	 */
 	//TODO: Synchronize with message handler so that predCounter will not change
 	private double[] averagePredictions()
@@ -915,7 +988,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	private void initTraining()
 	{
 		localize = new TestingTask(rawFile, trainFile);
-		localize.setProgBar(initialProgBar);
+		//localize.setProgBar(initialProgBar);
 		
 		final Thread initialLoadThread = new Thread(loadRunnable);
 		initialLoadThread.start();
@@ -971,6 +1044,54 @@ public class MainActivity extends Activity implements OnTouchListener {
 		origView.setY(ld.getAdjustedY(y));
 		origView.setVisibility(View.VISIBLE);
 		return;
+	}
+	
+	/**
+	 * Saves the localization data that we may use for the next run.
+	 * This will eliminate initial load times
+	 * 
+	 * @return True if save was successful, false otherwise
+	 */
+	private boolean saveLocalizeData()
+	{
+		try {
+			FileOutputStream fos = openFileOutput(rawFile, Context.MODE_PRIVATE);
+			ObjectOutputStream os = new ObjectOutputStream(fos);
+			os.writeObject(localize);
+			writtenToStorage = true; // Mark that we have written something to storage
+			os.writeBoolean(writtenToStorage); // Save marker that we have written to storage
+			localizationLog.save("SAVED LOCALIZATION OBJECT\n");
+			os.close();
+			fos.close();
+			return true;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+		
+	}
+	
+	/**
+	 * Loads the localization data that was saved from the last run
+	 * 
+	 * @return True if loading was successful, false otherwise
+	 */
+	private boolean loadLocalizeData()
+	{
+		try {
+			FileInputStream fis = openFileInput(rawFile);
+			ObjectInputStream ois = new ObjectInputStream(fis);
+			localize = (TestingTask)ois.readObject();
+			writtenToStorage = (boolean)ois.readBoolean();
+			finishedLoading = true;
+			ois.close();
+			fis.close();
+			return true;
+		} catch (Exception e)
+		{
+			e.printStackTrace();
+			return false;
+		}
 	}
 }
 

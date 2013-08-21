@@ -12,10 +12,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.Queue;
 
-import android.annotation.SuppressLint;
-import android.app.ProgressDialog;
-import android.os.AsyncTask;
-import android.view.View;
 import android.widget.ProgressBar;
 
 import com.tracme.util.*;
@@ -30,12 +26,17 @@ import com.tracme.localize.MainActivity;
  * @author Kwaku Farkye
  *
  */
-public	class TestingTask extends AsyncTask < Object, Integer, Void > {
+public	class TestingTask implements Serializable {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -999857483258613244L;
 	private String rawDataFile; // name of raw data file, given by constructor method; e.g., rawDataFile = "brunato_data.txt";
 	private String trainFile; // name of train file, given by constructor method; e.g., trainFile = "train_p0.5.txt"
 	
-	private AndroidLog rawDataLog; // Android log of raw data file, containing the file input stream
-	private AndroidLog trainFileLog; // Android log of train file, containing the file input stream
+	//transient private AndroidLog rawDataLog; // Android log of raw data file, containing the file input stream
+	//private AndroidLog trainFileLog; // Android log of train file, containing the file input stream
 	
 	int maxX; // max x-coordinate in the resolution of the area map
 	int maxY; // max y-coordinate in the resolution of the area map
@@ -44,13 +45,9 @@ public	class TestingTask extends AsyncTask < Object, Integer, Void > {
 	// attributes below are for SH-SVM
 	private int numClassesX; // number of classes for X dimension
 	private int numClassesY; // number of classes for Y dimension
-	TrainingModel [] modelX, modelY;
+	private TrainingModel [] modelX, modelY;
 	
-	public ProgressBar initialProgBar;
-	
-	
-	// Activity that is calling us (we need this to give progress updates)
-	MainActivity activity;
+	//transient public ProgressBar initialProgBar;
 	
 	public TestingTask(String rawDataFile1, String trainFile1) {
 		
@@ -61,7 +58,7 @@ public	class TestingTask extends AsyncTask < Object, Integer, Void > {
 		numClassesY = -1;
 		
 		// Load android logs for the files
-		rawDataLog = new AndroidLog(rawDataFile + "_dir/parameters.txt", true);
+		AndroidLog rawDataLog = new AndroidLog(rawDataFile + "_dir/parameters.txt", true);
 		//trainFileLog = new AndroidLog(trainFile, true);
 		
 		try {
@@ -82,70 +79,7 @@ public	class TestingTask extends AsyncTask < Object, Integer, Void > {
 		} 
 	}
 	
-	/**
-	 * Builds instances of TrainingModel for each X class and Y class
-	 * On Return, this method calls onPostExecute() and quits back to the UI thread
-	 * 
-	 * @param params
-	 * 	The params passed by calling UI thread/activity. 
-	 * 	The order of the params is: numXClasses, numYClasses, Context for Activity
-	 * 
-	 */
-	@Override
-	protected Void doInBackground(Object... params) {
-		// Receive and Set all the params received from the UI thread
-		numClassesX =  (Integer)params[0];
-		numClassesY =  (Integer)params[1];
-		initialProgBar = (ProgressBar)params[2];
-		
-		// Keep track of the total classes done (for incrementing the progress bar)
-		int totalClassesDone = 0;
-		
-		/* This code comes from the setNumClasses() Method */
-		modelX = new TrainingModel[numClassesX];
-		modelY = new TrainingModel[numClassesY];
-		
-		for (int i = 0; i < numClassesX; i++) {
-			System.out.println("SETTING CLASSES FOR X: " + i);
-			String str = rawDataFile +"_dir/" + trainFile + "_dir/X" + numClassesX + "/" + (i+1) + ".txt";
-			//System.out.println("Load training model " + str);
-			modelX[i] = new TrainingModel(str, numAnchors);
-			
-			// Increment the amount of classes done
-			totalClassesDone++;
-			// Publish the progress in the progress bar
-			publishProgress(totalClassesDone);
-		}
-		for (int i = 0; i < numClassesY; i++) {
-			System.out.println("SETTING CLASSES FOR Y: " + i);
-			String str = rawDataFile +"_dir/" + trainFile + "_dir/Y" + numClassesY + "/" + (i+1) + ".txt";
-			//System.out.println("Load training model " + str);
-			modelY[i] = new TrainingModel(str, numAnchors);
-			
-			// Increment the amount of classes done
-			totalClassesDone++;
-			// Publish the progress in the progress bar
-			publishProgress(totalClassesDone);
-		}
-		
-		return null;
-	}
-		
-	@SuppressLint("UseValueOf")
-	protected void onProgressUpdate(Integer... progress)
-	{
-		initialProgBar.setProgress(progress[0]);
-		return;
-	}
-		
-	protected void onPostExecute()
-	{
-		initialProgBar.setVisibility(View.GONE);
-		//activity.initIntentService();
-		return;
-	}
-	
-	public void setNumClasses (int numClassesX1, int numClassesY1) {
+	public void setNumClasses (int numClassesX1, int numClassesY1, ProgressBar initialProgBar) {
 		int totalClassesDone = 0;
 		numClassesX = numClassesX1;
 		numClassesY = numClassesY1;	
@@ -171,11 +105,12 @@ public	class TestingTask extends AsyncTask < Object, Integer, Void > {
 		
 	}
 	
-	
+	/*
 	public void setProgBar(ProgressBar bar)
 	{
 		initialProgBar = bar;
 	}
+	*/
 	
 	private int getClassID(String dimension, double[] b) {
 		// given a reading b, return the smallest class containing b
