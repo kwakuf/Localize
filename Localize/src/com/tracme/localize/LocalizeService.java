@@ -49,7 +49,7 @@ public class LocalizeService extends IntentService {
 	private LocalizeBroadcastReceiver myReceiver;
 	private WifiManager myWifiManager;
 	
-	double[] rssis;// = {33,32,34,25,26,23,22,19,16,17,15,16,12,9,13,11,11,12,33,26,26,25,24,18,19,16,84,17,16,15,14,11,14,10,11,9,16,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; //List of rssi values for each access point in the ap list
+	double[] rssis; // Array of rssi values received from the scans
 	
 	double[] prediction = new double[2]; // Prediction of the corresponding point
 	
