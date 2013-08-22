@@ -47,7 +47,7 @@ public class LocalizeDisplay {
 	public Drawable drawable;
 
 	public LocalizeDisplay() {
-
+		matrix.getValues(eventMatrix);
 	}
 
 	public void calcInitScale() {
