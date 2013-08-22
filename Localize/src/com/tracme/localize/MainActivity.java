@@ -71,7 +71,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	/******** TODO: HOW ARE WE GOING TO SET THESE? *******/
 	/* Name of the access point file */
-	String apfilename = "apcc1_76_nexus";
+	String apfilename;// = "apcc1_76_nexus";
 	
 	/* Options for localization (set these in settings) */
 	LocalizeOptions options;
@@ -79,7 +79,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/* Intent to start the LocalizeService */
 	Intent localizeIntent;
 	
-	private String rawFile = "cc1_81_nexus.txt"; // Name of the rawfile
+	private String rawFile;// = "cc1_81_nexus.txt"; // Name of the rawfile
 	private String trainFile = "train_p0.0.txt_sub_1.0.1.txt"; // Name of the training file
 	private int nX = 100; // Number of classes in x dimension
 	private int nY = 100; // Number of classes in y dimension
@@ -94,7 +94,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	AndroidLog localizationLog = null;
 	
 	/** Name of the localization log file */
-	String locLog = "locAug22_81pts_100";//_correcttomaxrange_1stddev0.9";
+	String locLog = "locAug22LoadTest";//_correcttomaxrange_1stddev0.9";
 	
 	/*********************END********************************/
 	
@@ -426,6 +426,11 @@ public class MainActivity extends Activity implements OnTouchListener {
 		super.onCreate(savedInstanceState);		
 		
 		long startTime = System.nanoTime();
+		
+		// Receive and parse the intent from the load activity
+		Intent intent = getIntent();
+		apfilename = intent.getStringExtra(LoadActivity.AP_FILE);
+		rawFile = intent.getStringExtra(LoadActivity.LOCALIZE_FILE);
 		
 		if (loadLocalizeData())
 		{

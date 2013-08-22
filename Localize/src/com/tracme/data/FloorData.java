@@ -30,6 +30,14 @@ public class FloorData {
 	/** Access point file associated with this floor */
 	private String apFileName;
 	
+	/**
+	 * Constructor for Floor Data that initializes all fields
+	 * @param name The name of the floor
+	 * @param building The name of the building this floor is in
+	 * @param fileName The name of the localization model file to load for this floor
+	 * @param apFile The name of the access point file to load for this floor
+	 * @param floorNum The floor number of this floor
+	 */
 	public FloorData(String name, String building, String fileName, String apFile, int floorNum)
 	{
 		floorName = name;

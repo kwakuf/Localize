@@ -4,6 +4,7 @@
 package com.tracme.data;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class is an object that holds information on a specific building.
@@ -26,7 +27,7 @@ public class BuildingData {
 	private int numberOfFloors;
 	
 	/** List of FloorData objects representing the floors that are in this building */
-	private ArrayList<FloorData> floors;
+	private List<FloorData> floors;
 	
 	public BuildingData(String name, int numFloors)
 	{
@@ -78,6 +79,17 @@ public class BuildingData {
 	 */
 	public ArrayList<FloorData> getFloors()
 	{
-		return floors;
+		return (ArrayList<FloorData>)floors;
+	}
+	
+	public ArrayList<String> getFloorNames()
+	{
+		ArrayList<String>list = new ArrayList<String>();
+		for (int i = 0; i < floors.size(); i++)
+		{
+			list.add(floors.get(i).getFloorName());
+		}
+		
+		return list;
 	}
 }

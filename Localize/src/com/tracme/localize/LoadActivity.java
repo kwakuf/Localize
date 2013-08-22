@@ -1,6 +1,7 @@
 package com.tracme.localize;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import com.tracme.R;
 import com.tracme.data.*;
@@ -9,6 +10,9 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.ArrayAdapter;
 import android.widget.Spinner;
 import android.widget.Button;
 import android.widget.Toast;
@@ -44,7 +48,13 @@ public class LoadActivity extends Activity {
 	private String apFileName = null;
 	
 	/** List of buildings to load from */
-	private ArrayList<BuildingData> buildings;
+	private List<BuildingData> buildings;
+	
+	/** ID of the building that has been selected */
+	private int buildingID;
+	
+	/** ID of the floor that has been selected */
+	private int floorID;
 	
 	/** Called when the activity is first created. */
 	@Override
@@ -54,6 +64,14 @@ public class LoadActivity extends Activity {
 	    setContentView(R.layout.activity_load);
 	    goButton = (Button)findViewById(R.id.button1);
 	    
+	    locationSpinner = (Spinner)findViewById(R.id.locationSpinner);
+	    
+	    floorSpinner = (Spinner)findViewById(R.id.floorSpinner);
+	    
+	    floorSpinner.setVisibility(View.INVISIBLE);
+	    
+	    addLocationSpinnerListener();
+	    addFloorSpinnerListener();
 	    populateList();
 	}
 	
@@ -70,6 +88,8 @@ public class LoadActivity extends Activity {
 	{
 		if ( apFileName != null && locFileName != null)
 		{
+			// Make a new intent for the Main Activity and pass it
+			// the access point file name and localization model name
 			Intent intent = new Intent(this, MainActivity.class);
 			intent.putExtra(LOCALIZE_FILE, locFileName);
 			intent.putExtra(AP_FILE, apFileName);
@@ -78,13 +98,108 @@ public class LoadActivity extends Activity {
 		else
 		{
 			Toast.makeText(this, "Please select your location", Toast.LENGTH_SHORT).show();
-			apFileName = "apcc1_76_nexus";
-			locFileName = "cc1_81_nexus.txt";
 		}
 	}
 
+	/**
+	 * Method for populating a list of buildings and floors for use with the spinners.
+	 * This method is for testing/prototyping purposes ONLY.
+	 */
 	public void populateList()
 	{
 		buildings = new ArrayList<BuildingData>();
+		
+		BuildingData campusCenter = new BuildingData("Campus Center");
+		FloorData floor1 = new FloorData("FirstFloor", "Campus Center", "cc1_81_nexus.txt", "apcc1_76_nexus.txt", 1);
+		FloorData upperlevel = new FloorData("UpperLevel", "Campus Center", "cc1_76_cluster20.txt", "apcc1_76_cluster20.txt", 0);
+		campusCenter.addFloor(floor1);
+		campusCenter.addFloor(upperlevel);
+		
+		BuildingData wheatleyHall = new BuildingData("Wheatley Hall");
+		FloorData floor2 = new FloorData("SecondFloor", "Wheatley Hall", "cc1_76_cluster30.txt", "apcc1_76_cluster30.txt", 2);
+		wheatleyHall.addFloor(floor2);
+		
+		buildings.add(campusCenter);
+		buildings.add(wheatleyHall);
+		
+		List<String> buildingList = new ArrayList<String>();
+		for (int i = 0; i < buildings.size(); i++)
+		{
+			buildingList.add(buildings.get(i).getBuildingName());
+		}
+		
+		ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(this,
+				android.R.layout.simple_spinner_item, buildingList);
+		
+		dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+		locationSpinner.setAdapter(dataAdapter);
+	}
+	
+	/**
+	 * Add a listener to the location spinner so we can get a building selection and
+	 * display the floors in the floor spinner based on the floors registered with the selected
+	 * building
+	 * 
+	 */
+	public void addLocationSpinnerListener()
+	{
+		// Setup the location spinner listener
+		locationSpinner.setOnItemSelectedListener(new OnItemSelectedListener()
+		{
+			public void onItemSelected(AdapterView<?> parent, View v, int pos, long id)
+			{
+				//String buildName;
+				//buildName = parent.getItemAtPosition(pos).toString();
+				
+				buildingID = pos;
+				
+				// Populate the floors spinner with the floors for this building
+				ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(LoadActivity.this,
+						android.R.layout.simple_spinner_item, buildings.get(pos).getFloorNames());
+				
+				dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+				floorSpinner.setVisibility(View.VISIBLE);
+				floorSpinner.setAdapter(dataAdapter);
+				
+			}
+			
+			@Override
+			public void onNothingSelected(AdapterView<?> arg0)
+			{
+				//floorSpinner.setVisiblity(View.INVISIBLE);
+			}
+		});	
+	}
+	
+	/**
+	 * Method to add a listener to the floor spinner. The floor spinner is
+	 * enabled once a building has been selected. Once a floor for that building is
+	 * selected the access point file and localization model file are given
+	 * and the go button can be pressed to proceed to the Main Activity
+	 */
+	public void addFloorSpinnerListener()
+	{
+		// Setup the floor spinner listener
+		floorSpinner.setOnItemSelectedListener(new OnItemSelectedListener() 
+		{
+			public void onItemSelected(AdapterView<?> parent, View v, int pos, long id)
+			{
+				floorID = pos;
+				
+				FloorData floor = buildings.get(buildingID).
+						getFloors().get(floorID);
+				
+				locFileName = floor.getFileName();
+				apFileName = floor.getAPFileName();
+				Toast.makeText(LoadActivity.this, "LocFile: " + locFileName
+						+ " AP name: "  + apFileName, Toast.LENGTH_LONG).show();
+			}
+			
+			@Override
+			public void onNothingSelected(AdapterView<?> arg0)
+			{
+				
+			}
+		});
 	}
 }
