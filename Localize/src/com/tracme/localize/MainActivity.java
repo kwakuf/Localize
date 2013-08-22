@@ -20,6 +20,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
+import android.graphics.PointF;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.OvalShape;
@@ -32,6 +33,9 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;
+import android.view.animation.Animation;
+import android.view.animation.TranslateAnimation;
+import android.view.animation.Animation.AnimationListener;
 import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -93,12 +97,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/* Interface to localization classes provided by Dr. Tran */
 	private TestingTask localize;
 	
-	// x coordinate for plotting on the image
-	protected float xCoord = 0;
-	
-	// y coordinate for plotting on the image
-	protected float yCoord = 0;
-	
 	/***********************************************
 	 * Variables for the Image Manipulation aspect *
 	 *                                             *
@@ -108,17 +106,25 @@ public class MainActivity extends Activity implements OnTouchListener {
 	// Views for the Background Image and positioning Icon
 	private ImageView imgView;
 	private MyDrawableView myDView;
+	private TrailView tview;
 	
 	private LocalizeDisplay ld;
 	
+	private PointF center = new PointF();
+	public PointF transPoint = new PointF();
+	
 	private int numScans = 1;
 	private int numScansPending;
+	public int trailNdx = 0;
 	
 	public static final boolean POINT = true;
 	public static final boolean FOLLOW = false;
 	
 	private boolean mapState = POINT;
 	private boolean tempMap;	
+	public boolean animDone = true;
+	
+	
 	
 	/****************** END *************************/
 	
@@ -250,6 +256,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 		myDView = (MyDrawableView) findViewById(R.id.circleView1);
 		myDView.setVisibility(View.INVISIBLE);
 
+		tview = (TrailView) findViewById(R.id.trailView1);
+		
 		imgView.setOnTouchListener(this);
 		
 		// Initialize the first intent service and start it
@@ -362,7 +370,10 @@ public class MainActivity extends Activity implements OnTouchListener {
 
 		// handle touch events here
 		ImageView view = (ImageView) v;
-
+		
+		// TODO find a better place to initialize the center
+		center.set(v.getWidth() / 2, v.getHeight() / 2);
+		
 		switch (event.getAction() & MotionEvent.ACTION_MASK) {
 		case MotionEvent.ACTION_DOWN:
 			ld.actionDown(event);
@@ -397,9 +408,19 @@ public class MainActivity extends Activity implements OnTouchListener {
 
 		ld.matrix.getValues(ld.eventMatrix);
 
+		if (!animDone) {
+			System.out.println("moving");
+			return true;
+		}
+		
+		if (mapState == POINT) {
 		/* The point specified will be given by the localization function */
 		plotPoint(xCoord, yCoord);
 		view.setImageMatrix(ld.matrix);
+		}
+		else
+			view.setImageMatrix(plotImage(xCoord, yCoord, ld.matrix));
+		
 		return true;
 	}
 	
@@ -432,7 +453,13 @@ public class MainActivity extends Activity implements OnTouchListener {
 		// Set the coord values to the predicted values
 		xCoord = (float)prediction[0];
 		yCoord = (float)prediction[1];
-		plotPoint(xCoord, yCoord);
+		if (mapState == POINT) {
+		  // plotPoint(xCoord, yCoord);
+			movePoint(xCoord, yCoord);
+		}
+		else {
+			imgView.setImageMatrix(moveImage(xCoord, yCoord, ld.matrix));
+		}
 		Toast.makeText(MainActivity.this,
 				res, Toast.LENGTH_LONG)
 				.show();
@@ -486,8 +513,103 @@ public class MainActivity extends Activity implements OnTouchListener {
 		myDView.setX(ld.getAdjustedX(x));
 		myDView.setY(ld.getAdjustedY(y));
 		myDView.setVisibility(View.VISIBLE);
+		
+		// Move the trail view as the map moves
+		tview.setX(ld.eventMatrix[Matrix.MTRANS_X]);
+		tview.setY(ld.eventMatrix[Matrix.MTRANS_Y]);
+
+		tview.setPivotX(ld.mid.x);
+		tview.setPivotY(ld.mid.y);
+		tview.setScaleX(ld.eventMatrix[Matrix.MSCALE_X]);
+		tview.setScaleY(ld.eventMatrix[Matrix.MSCALE_Y]);
 		return;
-	}	
+	}
+	
+	/*
+	 * Function that will center a point on the map
+	 */
+	private Matrix plotImage(float x, float y, Matrix m) {
+		float[] mtxArr = new float[9];
+    PointF scale = ld.getInitScale();
+		
+		myDView.setX(center.x);
+		myDView.setY(center.y);
+		m.getValues(mtxArr);
+
+		mtxArr[Matrix.MTRANS_X] = center.x - (x * scale.x) + 25;
+		mtxArr[Matrix.MTRANS_Y] = center.y - (y * scale.y) + 25;
+
+		m.setValues(mtxArr);
+
+		tview.setX(mtxArr[Matrix.MTRANS_X]);
+		tview.setY(mtxArr[Matrix.MTRANS_Y]);
+		return m;
+	}
+	
+	/*
+	 * Functions that animates the movement of marker from one point to the next
+	 */
+	private void movePoint(float x, float y) {
+
+		float prevX = myDView.getX();
+		float prevY = myDView.getY();
+		tview.trail(trailNdx, prevX, prevY);
+
+		float calcX = ld.getAdjustedX(x);
+
+		float calcY = ld.getAdjustedY(y);
+
+		transPoint.set(calcX, calcY);
+
+		TranslateAnimation anim = new TranslateAnimation(0, calcX - prevX, 0, calcY
+				- prevY);
+		anim.setFillAfter(true);
+		anim.setDuration(1000);
+		anim.setAnimationListener(new AnimationListener() {
+			@Override
+			public void onAnimationEnd(Animation animation) {
+				animation.setFillAfter(false);
+				myDView.setX(transPoint.x);
+				myDView.setY(transPoint.y);
+
+				animDone = true;
+				trailNdx++;
+
+				System.out.println("trail ndx is " + trailNdx);
+			}
+
+			@Override
+			public void onAnimationRepeat(Animation animation) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void onAnimationStart(Animation animation) {
+				// TODO Auto-generated method stub
+
+			}
+		});
+		myDView.startAnimation(anim);
+	}
+	
+	/*
+	 * Responsible for adding the trail in FOLLOW MODE
+	 */
+	private Matrix moveImage(float x, float y, Matrix m) {
+		PointF scale = ld.getInitScale();
+
+		// Calculate the previous point for the trail
+		float calcX = (xCoord * scale.x) - 10;
+		float calcY = (yCoord * scale.y) - 10;
+
+		// Add a trail point
+		tview.trail(trailNdx, calcX, calcY);
+		trailNdx++;
+		
+		animDone = true;
+		return plotImage(x, y, m);
+	}
 }
 
 /*
@@ -524,5 +646,53 @@ class MyDrawableView extends View {
 
 	protected void onDraw(Canvas canvas) {
 		mDrawable.draw(canvas);
+	}
+}
+
+/*
+ * Trailing shapes
+ */
+class TrailView extends View {
+	private ShapeDrawable[] trail = new ShapeDrawable[20];
+	private int plotCnt = 0;
+
+	private int diameter = 20;
+
+	public TrailView(Context context) {
+		super(context);
+
+	}
+
+	public TrailView(Context context, AttributeSet attrs) {
+		super(context, attrs);
+		
+	}
+
+	protected void onDraw(Canvas canvas) {
+		plotCnt = (plotCnt > 20) ? (20) : (plotCnt);
+		for (int i = 0; i < plotCnt; i++) {
+			trail[i].draw(canvas);
+		}
+	}
+
+	public void trail(int ndx, float x, float y) {
+
+		// fix for some duplicating issue
+		if (plotCnt != ndx + 1) {
+			System.out.println("TRAILING");
+			plotCnt = ndx + 1;
+			if (ndx >= 20) {
+				ndx %= 20;
+			}
+			else {
+				trail[ndx] = new ShapeDrawable(new OvalShape());
+				trail[ndx].getPaint().setColor(0xff74AC23);
+			}
+			System.out.println("x and y: " + x + ", " + y);
+			trail[ndx].setBounds((int) x + 10, (int) y + 10, (int) x + diameter + 10,
+					(int) y + diameter + 10);
+
+			invalidate();
+		}
 	}
 }

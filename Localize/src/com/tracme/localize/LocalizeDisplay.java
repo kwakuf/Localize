@@ -47,7 +47,7 @@ public class LocalizeDisplay {
 	public Drawable drawable;
 
 	public LocalizeDisplay() {
-
+     matrix.getValues(eventMatrix);
 	}
 
 	public void calcInitScale() {
@@ -136,6 +136,11 @@ public class LocalizeDisplay {
 	public float getAdjustedY(float y) {
 		return (y * initScaleY * eventMatrix[Matrix.MSCALE_Y]) - 25
 		+ eventMatrix[Matrix.MTRANS_Y];
+	}
+	
+	public PointF getInitScale() {
+		PointF scale = new PointF(initScaleX, initScaleY);
+		return scale;
 	}
 	
 	public void checkEdgeCases(ImageView view) {
