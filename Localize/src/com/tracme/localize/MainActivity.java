@@ -25,6 +25,7 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.ShapeDrawable;
+import android.graphics.drawable.TransitionDrawable;
 import android.graphics.drawable.shapes.OvalShape;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
@@ -78,7 +79,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/* Intent to start the LocalizeService */
 	Intent localizeIntent;
 	
-	private String rawFile = "cc1_76_nexus.txt"; // Name of the rawfile
+	private String rawFile = "cc1_81_nexus.txt"; // Name of the rawfile
 	private String trainFile = "train_p0.0.txt_sub_1.0.1.txt"; // Name of the training file
 	private int nX = 100; // Number of classes in x dimension
 	private int nY = 100; // Number of classes in y dimension
@@ -93,7 +94,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	AndroidLog localizationLog = null;
 	
 	/** Name of the localization log file */
-	String locLog = "locPersistTest";//_correcttomaxrange_1stddev0.9";
+	String locLog = "locAug22_81pts_100";//_correcttomaxrange_1stddev0.9";
 	
 	/*********************END********************************/
 	

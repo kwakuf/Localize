@@ -2,8 +2,13 @@
 <resources>
 
     <string name="app_name">Localize</string>
-    <string name="hello_world">Tracme is Loading..</string>
+    <string name="loading">Tracme is Loading..</string>
+    <string name="hello_world"> Hello World </string>
     <string name="menu_settings">Settings</string>
     <string name="action_settings">Settings</string>
-
+    <string name="select">Select Your Location:</string>
+    <string name="go_prompt">GO!</string>
+    <string name="floor_prompt">What Floor Are You On?</string>
+	<string name="building_prompt">Select The Building</string>
+	
 </resources>
