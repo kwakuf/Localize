@@ -5,14 +5,19 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
+import java.io.Serializable;
 
 import android.app.Activity;
 import android.content.Context;
 import android.os.Environment;
 import android.widget.Toast;
 
-public class AndroidLog {
+public class AndroidLog implements Serializable {
   
+  /**
+	 * 
+	 */
+  private static final long serialVersionUID = -2387572693888686831L;
   public File file;
   public File path;
   public FileInputStream inputStream;
