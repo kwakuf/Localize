@@ -10,5 +10,8 @@
     <string name="go_prompt">GO!</string>
     <string name="floor_prompt">What Floor Are You On?</string>
 	<string name="building_prompt">Select The Building</string>
+	<string name="toggle_button">ToggleButton</string>
+	<string name="mapping_mode">Mapping mode</string>
+	<string name="speed">Speed</string>
 	
 </resources>

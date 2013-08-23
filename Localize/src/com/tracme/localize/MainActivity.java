@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
+import android.graphics.PointF;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.TransitionDrawable;
@@ -37,12 +38,17 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnTouchListener;
+import android.view.animation.Animation;
+import android.view.animation.Animation.AnimationListener;
+import android.view.animation.TranslateAnimation;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.SeekBar.OnSeekBarChangeListener;
+import android.widget.ToggleButton;
 
 /**
  * Main Activity for TracMe localization. 
@@ -157,11 +163,24 @@ public class MainActivity extends Activity implements OnTouchListener {
 	private MyDrawableView myDView;
 	private MyDrawableView errView;
 	private MyDrawableView origView;
+	private TrailView tview;
 	
 	private LocalizeDisplay ld;
 	
+	private PointF center = new PointF();
+	public PointF transPoint = new PointF();
+	
 	private int numScans = 5;
 	private int numScansPending;
+	public int trailNdx = 0;
+
+	public static final boolean POINT = true;
+	public static final boolean FOLLOW = false;
+
+	private boolean mapState = POINT;
+	private boolean tempMap;	
+	public boolean animDone = true;
+
 	
 	/****************** END *************************/
 	
@@ -185,10 +204,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	/** Flag specifying if the predicted location is within the range of the previous location */
 	private boolean withinRange = true;
-	
-	/** Runnable Thread used for initial loading of models and classes */
-	//private InitialLoadRunnable loadRunnable;
-	
+		
 	/** Instance of our scan handler to handle incoming messages */
 	private ScanHandler sHandler = new ScanHandler();
 	
@@ -265,7 +281,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 					long endTime = System.nanoTime();
 					localizationLog.save("Saved localization data via persistence runnable \n");
 					localizationLog.save("Time taken to save log: " + 
-							((endTime - startTime) / nanoMult) + "." + ((endTime - startTime) % nanoMult) + " seconds\n" );	
+							((endTime - startTime) / nanoMult) + "." + ((endTime - startTime) % nanoMult) + " seconds\n\n" );	
 				}
 			}
 			else
@@ -302,7 +318,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 				{
 					endTime = System.nanoTime();
 					localizationLog.save("Time taken to load localization info: " + 
-							((endTime - startTime) / nanoMult) + "." + ((endTime - startTime) % nanoMult) + " seconds\n" );
+							((endTime - startTime) / nanoMult) + "." + ((endTime - startTime) % nanoMult) + " seconds\n\n" );
 				}
 				
 				try {
@@ -568,6 +584,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 		origView.setVisibility(View.INVISIBLE);
 		origView.setDrawColor("Red");
 		
+		tview = (TrailView) findViewById(R.id.trailView1);
+		
 		imgView.setOnTouchListener(this);
 		
 		// Initialize the first intent service and start it
@@ -612,11 +630,34 @@ public class MainActivity extends Activity implements OnTouchListener {
 						numScans = (numScansPending == 0) ? (1) : (numScansPending);
 						// Set the option for the next intent
 						options.setNumScans(numScans);
+
+						mapState = tempMap;
 						dialog.dismiss();
 					}
 				}).setNeutralButton("Cancel", null).show();
 		SeekBar sbBetVal = (SeekBar) v.findViewById(R.id.sbBetVal);
 		tvBetVal = (TextView) v.findViewById(R.id.tvBetVal);
+
+		ToggleButton tBut = (ToggleButton) v.findViewById(R.id.toggleButton1);
+		tBut.setChecked(mapState);
+		tBut.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+				if (isChecked) {
+					// The toggle is enabled
+					System.out.println("This is the first choice");
+					// THIS IS THE POINT OPTION
+					tempMap = POINT;
+
+				}
+				else {
+					// The toggle is disabled
+					System.out.println("This is the second choice");
+					// THIS IS THE FOLLOW OPTION
+					tempMap = FOLLOW;
+				}
+			}
+		});
+
 		sbBetVal.setMax(10);
 		sbBetVal.setProgress(numScans);
 		sbBetVal.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
@@ -663,6 +704,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 		// handle touch events here
 		ImageView view = (ImageView) v;
 
+		// TODO find a better place to initialize the center
+		center.set(v.getWidth() / 2, v.getHeight() / 2);
+		
 		switch (event.getAction() & MotionEvent.ACTION_MASK) {
 		case MotionEvent.ACTION_DOWN:
 			ld.actionDown(event);
@@ -690,24 +734,35 @@ public class MainActivity extends Activity implements OnTouchListener {
 				ld.drag(event);
 			}
 			else if (ld.mode == LocalizeDisplay.ZOOM) {
-        ld.zoomAndRotate(event, view);
+				ld.zoomAndRotate(event, view);
 			}
 			break;
 		}
 
 		ld.matrix.getValues(ld.eventMatrix);
 
-		/* The point specified will be given by the localization function */
-		plotPoint(xCoord, yCoord);
+		if (!animDone) {
+			System.out.println("moving");
+			return true;
+		}
+		
+		if (mapState == POINT) {
+			/* The point specified will be given by the localization function */
+			plotPoint(xCoord, yCoord);
+			view.setImageMatrix(ld.matrix);
+		}
+		else
+		{
+			view.setImageMatrix(plotImage(xCoord, yCoord, ld.matrix));
+		}
 		
 		if (debugMode)
 		{
 			plotOrigPoint(origX, origY);
-			if (withinRange)
+			if (!withinRange)
 				plotErrPoint(errX, errY);
 		}
 		
-		view.setImageMatrix(ld.matrix);
 		return true;
 	}
 	
@@ -729,7 +784,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 
 	/**
 	 * Translates the returned points from getEstLocation into coordinates.
-	 * The coordinate values will then be plotted via plotPoint()
+	 * The coordinate values will then be plotted via plotPoint() functions.
+	 * This method is called before anything is drawn onto the image view
 	 * 
 	 * @param prediction The predicted values from getEstLocation()
 	 */
@@ -752,14 +808,16 @@ public class MainActivity extends Activity implements OnTouchListener {
 		xCoord = (float)prediction[0];
 		yCoord = (float)prediction[1];
 		
-		//if (debugMode)
-		//	plotOrigPoint(origX + 100, origY + 100);
+		if (mapState == POINT) {
+			  // plotPoint(xCoord, yCoord);
+				movePoint(xCoord, yCoord);
+		}
+		else {
+				imgView.setImageMatrix(moveImage(xCoord, yCoord, ld.matrix));
+		}
 		
-		if (withinRange && debugMode)
+		if (!withinRange && debugMode)
 			plotErrPoint(errX, errY);
-		
-		// Plot the point on the image
-		plotPoint(xCoord,yCoord);
 
 		if (debugMode)
 			localizationLog.save("-------- STARTING PREDICTION NUMBER " + count + " --------\n");
@@ -1078,6 +1136,16 @@ public class MainActivity extends Activity implements OnTouchListener {
 		myDView.setX(ld.getAdjustedX(x));
 		myDView.setY(ld.getAdjustedY(y));
 		myDView.setVisibility(View.VISIBLE);
+		
+		// Move the trail view as the map moves
+		tview.setX(ld.eventMatrix[Matrix.MTRANS_X]);
+		tview.setY(ld.eventMatrix[Matrix.MTRANS_Y]);
+
+		tview.setPivotX(ld.mid.x);
+		tview.setPivotY(ld.mid.y);
+		tview.setScaleX(ld.eventMatrix[Matrix.MSCALE_X]);
+		tview.setScaleY(ld.eventMatrix[Matrix.MSCALE_Y]);
+		
 		return;
 	}
 	
@@ -1117,6 +1185,97 @@ public class MainActivity extends Activity implements OnTouchListener {
 	}
 	
 	/**
+	 * Centers a point on the map (image view)
+	 * @param x
+	 * @param y
+	 * @param m
+	 */
+	private Matrix plotImage(float x, float y, Matrix m) {
+		float[] mtxArr = new float[9];
+		PointF scale = ld.getInitScale();
+
+		myDView.setX(center.x);
+		myDView.setY(center.y);
+		m.getValues(mtxArr);
+
+		mtxArr[Matrix.MTRANS_X] = center.x - (x * scale.x) + 25;
+		mtxArr[Matrix.MTRANS_Y] = center.y - (y * scale.y) + 25;
+
+		m.setValues(mtxArr);
+
+		tview.setX(mtxArr[Matrix.MTRANS_X]);
+		tview.setY(mtxArr[Matrix.MTRANS_Y]);
+		return m;
+	}
+	
+	/**
+	 * Functions that animates the movement of marker from one point to the next
+	 * @param x
+	 * @param y
+	 */
+	private void movePoint(float x, float y) {
+
+		float prevX = myDView.getX();
+		float prevY = myDView.getY();
+		tview.trail(trailNdx, prevX, prevY);
+
+		float calcX = ld.getAdjustedX(x);
+
+		float calcY = ld.getAdjustedY(y);
+
+		transPoint.set(calcX, calcY);
+
+		TranslateAnimation anim = new TranslateAnimation(0, calcX - prevX, 0, calcY
+				- prevY);
+		anim.setFillAfter(true);
+		anim.setDuration(1000);
+		anim.setAnimationListener(new AnimationListener() {
+			@Override
+			public void onAnimationEnd(Animation animation) {
+				animation.setFillAfter(false);
+				myDView.setX(transPoint.x);
+				myDView.setY(transPoint.y);
+
+				animDone = true;
+				trailNdx++;
+
+				System.out.println("trail ndx is " + trailNdx);
+			}
+
+			@Override
+			public void onAnimationRepeat(Animation animation) {
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void onAnimationStart(Animation animation) {
+				// TODO Auto-generated method stub
+
+			}
+		});
+		myDView.startAnimation(anim);
+	}
+	
+	/**
+	 * Responsible for adding the trail in FOLLOW MODE
+	 */
+	private Matrix moveImage(float x, float y, Matrix m) {
+		PointF scale = ld.getInitScale();
+
+		// Calculate the previous point for the trail
+		float calcX = (xCoord * scale.x) - 10;
+		float calcY = (yCoord * scale.y) - 10;
+
+		// Add a trail point
+		tview.trail(trailNdx, calcX, calcY);
+		trailNdx++;
+
+		animDone = true;
+		return plotImage(x, y, m);
+	}
+	
+	/**
 	 * Saves the localization data that we may use for the next run.
 	 * This will eliminate initial load times
 	 * 
@@ -1132,7 +1291,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 			os.writeBoolean(writtenToStorage); // Save marker that we have written to storage
 			
 			if (debugMode)
-				localizationLog.save("SAVED LOCALIZATION OBJECT\n");
+				localizationLog.save("SAVED LOCALIZATION OBJECT:\n");
 			
 			os.close();
 			fos.close();
@@ -1212,5 +1371,53 @@ class MyDrawableView extends View {
 
 	protected void onDraw(Canvas canvas) {
 		mDrawable.draw(canvas);
+	}
+}
+
+/*
+ * Trailing shapes
+ */
+class TrailView extends View {
+	private ShapeDrawable[] trail = new ShapeDrawable[20];
+	private int plotCnt = 0;
+
+	private int diameter = 20;
+
+	public TrailView(Context context) {
+		super(context);
+
+	}
+
+	public TrailView(Context context, AttributeSet attrs) {
+		super(context, attrs);
+
+	}
+
+	protected void onDraw(Canvas canvas) {
+		plotCnt = (plotCnt > 20) ? (20) : (plotCnt);
+		for (int i = 0; i < plotCnt; i++) {
+			trail[i].draw(canvas);
+		}
+	}
+
+	public void trail(int ndx, float x, float y) {
+
+		// fix for some duplicating issue
+		if (plotCnt != ndx + 1) {
+			System.out.println("TRAILING");
+			plotCnt = ndx + 1;
+			if (ndx >= 20) {
+				ndx %= 20;
+			}
+			else {
+				trail[ndx] = new ShapeDrawable(new OvalShape());
+				trail[ndx].getPaint().setColor(0xff74AC23);
+			}
+			System.out.println("x and y: " + x + ", " + y);
+			trail[ndx].setBounds((int) x + 10, (int) y + 10, (int) x + diameter + 10,
+					(int) y + diameter + 10);
+
+			invalidate();
+		}
 	}
 }
