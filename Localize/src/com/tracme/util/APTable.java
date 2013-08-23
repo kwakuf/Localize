@@ -38,7 +38,7 @@ public class APTable implements Parcelable
       //aps = new ArrayList< AccessPoint >();
       aps.clear();
 
-      tableLog = new AndroidLog(tableName + ".txt");
+      tableLog = new AndroidLog(tableName);
       tableLog_debug = new AndroidLog(tableName + "_debug.txt");
    }
    

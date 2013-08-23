@@ -42,7 +42,7 @@ public class LocalizeDisplay {
 	 */
 	public static float initScaleX;
 	public static float initScaleY;
-	
+
 	//Default Image properties
 	public Drawable drawable;
 
@@ -80,7 +80,7 @@ public class LocalizeDisplay {
 		double radians = Math.atan2(delta_y, delta_x);
 		return (float) Math.toDegrees(radians);
 	}
-	
+
 	/*
 	 * Changes the image matrix to account for a drag
 	 */
@@ -96,7 +96,7 @@ public class LocalizeDisplay {
 		 */
 		matrix.postTranslate(dx, dy);
 	}
-	
+
 	/*
 	 * Changes the image matrix to account for a zoom/rotate
 	 */
@@ -121,7 +121,7 @@ public class LocalizeDisplay {
 			matrix.postRotate(r, tx + xc, ty + yc);
 		}
 	}
-	
+
 	/*
 	 * Adjusts the x position on the image for scaling and dragging
 	 */
@@ -129,7 +129,7 @@ public class LocalizeDisplay {
 		return (x * initScaleX * eventMatrix[Matrix.MSCALE_X]) - 25
 				+ eventMatrix[Matrix.MTRANS_X];
 	}
-	
+
 	/*
 	 * Adjusts the y position on the image for scaling and dragging
 	 */
@@ -137,12 +137,12 @@ public class LocalizeDisplay {
 		return (y * initScaleY * eventMatrix[Matrix.MSCALE_Y]) - 25
 		+ eventMatrix[Matrix.MTRANS_Y];
 	}
-	
+
 	public PointF getInitScale() {
 		PointF scale = new PointF(initScaleX, initScaleY);
 		return scale;
 	}
-	
+
 	public void checkEdgeCases(ImageView view) {
 		switch (mode) {
 		case LocalizeDisplay.DRAG:
@@ -194,13 +194,13 @@ public class LocalizeDisplay {
 			break;
 		}
 	}
-	
+
 	public void actionDown(MotionEvent event) {
 		savedMatrix.set(matrix);
 		start.set(event.getX(), event.getY());
 		// lastEvent = null;
 	}
-	
+
 	public void pointerDown(MotionEvent event) {
 		lastEvent = new float[4];
 		lastEvent[0] = event.getX(0);

@@ -2,6 +2,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/unfadedbackground"
     tools:context=".MainActivity" >
 
     <TextView
@@ -10,7 +11,9 @@
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:layout_centerVertical="true"
-        android:text="@string/hello_world" />
+        android:text="@string/loading"
+        android:textColor="#000000" 
+        android:textAppearance="?android:attr/textAppearanceLarge" />
 
  	<ProgressBar
  	    android:id="@+id/initProgBar"

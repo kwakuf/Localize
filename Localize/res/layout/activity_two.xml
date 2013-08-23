@@ -19,9 +19,19 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
     
+    <com.tracme.localize.MyDrawableView
+            android:id="@+id/circleViewErr"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    
+    <com.tracme.localize.MyDrawableView
+            android:id="@+id/circleViewOrig"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+    
     <com.tracme.localize.TrailView
             android:id="@+id/trailView1"
             android:layout_width="fill_parent"
             android:layout_height="fill_parent" />
-
+    
 </RelativeLayout>

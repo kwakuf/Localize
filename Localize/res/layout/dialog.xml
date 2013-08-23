@@ -11,7 +11,7 @@ android:padding="10dp" >
     android:layout_height="wrap_content"
     android:layout_alignParentTop="true"
     android:layout_centerHorizontal="true"
-    android:text="Speed"
+    android:text="@string/speed"
     android:textAppearance="?android:attr/textAppearanceLarge" />
 
 <SeekBar
@@ -28,7 +28,7 @@ android:padding="10dp" >
     android:layout_alignRight="@+id/sbBetVal"
     android:layout_below="@+id/sbBetVal"
     android:layout_marginRight="14dp"
-    android:text="ToggleButton"
+    android:text="@string/toggle_button"
     android:textOff="FOLLOW"
     android:textOn="POINT" />
 
@@ -39,7 +39,7 @@ android:padding="10dp" >
     android:layout_alignBaseline="@+id/toggleButton1"
     android:layout_alignBottom="@+id/toggleButton1"
     android:layout_alignRight="@+id/tvBetVal"
-    android:text="Mapping mode"
+    android:text="@string/mapping_mode"
     android:textAppearance="?android:attr/textAppearanceLarge" />
 
 </RelativeLayout>
