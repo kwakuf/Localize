@@ -82,6 +82,12 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/** TAG Given to log on error of persistence load thread */
 	public static final String PERSIST_LOAD_TAG = "PERSIST_LOAD_THREAD";
 	
+	/** Localize Application instance for getting global objects/fields */
+	LocalizeApplication thisApp;
+	
+	/** Predictions object that holds information about predictions */
+	PredictionsObject predObj;
+	
 	/** Access point table object that holds all of the access points */
 	APTable apTable;
 	
@@ -111,46 +117,16 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/** Number of classes in y dimension */
 	private int nY = 100;
 	
-	/** Coefficient for average estimation location */
-	private double avgEstCoeff = 0.7;
-	
-	/** Coefficient for standard deviation */
-	private double stdDevCoeff = 0.8;
-	
-	/** Localization log that will record our results */
-	AndroidLog localizationLog = null;
-	
 	/*********************END********************************/
 	
 	/** Progress Bar used to show initial loading of localization classes */
 	public ProgressBar initialProgBar;
-	
-	/** Counter that records the number of predictions done */
-	public int count = 1;
-	
-	/** Predicted value of the location we are currently in */
-	double[] prediction = new double[2];
-	
-	/** Stored predictions used for averaging */
-	ArrayList <Double[]> predictions = new ArrayList <Double[]>();
-	
-	/** Counter for keep track of number of predictions done (used for averaging) */
-	private int predCounter = 1;
-	
+		
 	/** RSSI values received from LocalizeService */
 	double[] rssis; 
 	
 	/** Interface to localization classes provided by Dr. Tran */
 	private TestingTask localize;
-	
-	/** Previously predicted location */
-	private double[] prevPrediction = new double[2];
-	
-	/** Previously estimated standard deviation */
-	private double stdDevEst = 0;
-	
-	/** Factor for standard deviation radius of the previous prediction */
-	private int stdDevFactor = 3;
 	
 	/***********************************************
 	 * Variables for the Image Manipulation aspect *
@@ -183,39 +159,12 @@ public class MainActivity extends Activity implements OnTouchListener {
 
 	
 	/****************** END *************************/
-	
-	/** x coordinate for plotting on the image view */
-	protected float xCoord = 0;
-	
-	/** y coordinate for plotting on the image view */
-	protected float yCoord = 0;
-	
-	/** x coordinate for plotting the original predicted location */
-	protected float origX = 0;
-	
-	/** y coordinate for plotting the original predicted location */
-	protected float origY = 0;
-	
-	/** x coordinate for plotting the error corrected predicted location */
-	protected float errX = 0;
-	
-	/** y coordinate for plotting the error corrected predicted location */
-	protected float errY = 0;
-	
-	/** Flag specifying if the predicted location is within the range of the previous location */
-	private boolean withinRange = true;
 		
 	/** Instance of our scan handler to handle incoming messages */
 	private ScanHandler sHandler = new ScanHandler();
 	
 	/** Messenger for receiving messages from other threads */
 	private Messenger messenger;
-	
-	/** Flag specifying whether we are in debug mode */
-	private boolean debugMode = true;
-	
-	/** Multiple to compute seconds from nanoseconds */
-	private long nanoMult = 1000000000;
 	
 	/** Flag specifying whether our localization data has been written to storage yet */
 	private boolean writtenToStorage = false;
@@ -238,11 +187,11 @@ public class MainActivity extends Activity implements OnTouchListener {
 		public void run()
 		{
 			try {
-				prediction = averagePredictions();
+				predObj.averagePredictions();
 				
 				// Don't error correct the first couple of runs
-				if (count >= 3)
-					errorCorrect(prediction); // Perform error correction
+				if (thisApp.count >= 3)
+					predObj.errorCorrect(); // Perform error correction
 				
 				// All done predicting, so lets send a message to the main thread
 				Message msg = Message.obtain();
@@ -276,18 +225,18 @@ public class MainActivity extends Activity implements OnTouchListener {
 			
 			if (saveLocalizeData())
 			{
-				if (debugMode)
+				if (thisApp.debugMode)
 				{
 					long endTime = System.nanoTime();
-					localizationLog.save("Saved localization data via persistence runnable \n");
-					localizationLog.save("Time taken to save log: " + 
-							((endTime - startTime) / nanoMult) + "." + ((endTime - startTime) % nanoMult) + " seconds\n\n" );	
+					thisApp.localizationLog.save("Saved localization data via persistence runnable \n");
+					thisApp.localizationLog.save("Time taken to save log: " + 
+							((endTime - startTime) / thisApp.nanoMult) + "." + ((endTime - startTime) % thisApp.nanoMult) + " seconds\n\n" );	
 				}
 			}
 			else
 			{
-				if (debugMode)
-					localizationLog.save("Unable to save localization data\n");
+				if (thisApp.debugMode)
+					thisApp.localizationLog.save("Unable to save localization data\n");
 			}
 		}
 	}
@@ -305,20 +254,20 @@ public class MainActivity extends Activity implements OnTouchListener {
 		{
 			long startTime = 0;
 			long endTime = 0;
-			if (debugMode)
+			if (thisApp.debugMode)
 			{
 				startTime = System.nanoTime();
-				localizationLog.save("NEW RUN: LOADING Localization MODELS...\n");
+				thisApp.localizationLog.save("NEW RUN: LOADING Localization MODELS...\n");
 			}
 						
 			// Attempt to load localization data from internal storage
 			if (loadLocalizeData())
 			{
-				if (debugMode)
+				if (thisApp.debugMode)
 				{
 					endTime = System.nanoTime();
-					localizationLog.save("Time taken to load localization info: " + 
-							((endTime - startTime) / nanoMult) + "." + ((endTime - startTime) % nanoMult) + " seconds\n\n" );
+					thisApp.localizationLog.save("Time taken to load localization info: " + 
+							((endTime - startTime) / thisApp.nanoMult) + "." + ((endTime - startTime) % thisApp.nanoMult) + " seconds\n\n" );
 				}
 				
 				try {
@@ -370,14 +319,14 @@ public class MainActivity extends Activity implements OnTouchListener {
 			long endTime = 0;
 			
 			try {
-				if (debugMode)
+				if (thisApp.debugMode)
 					startTime = System.nanoTime();
 				
 				// Setup the model classes
 				localize.setNumClasses(nX, nY, initialProgBar);
 				// Once models are loaded, send a message to the main thread
 				
-				if (debugMode)
+				if (thisApp.debugMode)
 					endTime = System.nanoTime();
 				
 				finishedLoading = true;
@@ -389,9 +338,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 				// Send the message and end our run
 				messenger.send(msg);
 				
-				if (debugMode)
-					localizationLog.save("Time taken to load X" + nX + ", Y" + nY + " classes: " +
-							((endTime - startTime) / nanoMult) + "." + ((endTime - startTime) % nanoMult) + " seconds\n" );
+				if (thisApp.debugMode)
+					thisApp.localizationLog.save("Time taken to load X" + nX + ", Y" + nY + " classes: " +
+							((endTime - startTime) / thisApp.nanoMult) + "." + ((endTime - startTime) % thisApp.nanoMult) + " seconds\n" );
 				
 			} catch (Exception e)
 			{
@@ -418,8 +367,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 			if (msg.obj == LOAD_COMPLETE)
 			{
 				initImageView();
-				if (debugMode)
-					localizationLog.save("-------- STARTING PREDICTION NUMBER " + count + " --------\n");
+				if (thisApp.debugMode)
+					thisApp.localizationLog.save("-------- STARTING PREDICTION NUMBER " + thisApp.count + " --------\n");
 				
 				// Save the localization data
 				PersistenceRunnable pr = new PersistenceRunnable();
@@ -433,10 +382,10 @@ public class MainActivity extends Activity implements OnTouchListener {
 			if (msg.obj == PREDICTION_COMPLETE)
 			{	
 				// Translate the prediction to a coordinate
-				translatePoint(prediction);
+				translatePoint(predObj.prediction);
 				
 				// Reset prediction counter
-				predCounter = 1;
+				predObj.predCounter = 1;
 				
 				// Restart the service
 				initIntentService();
@@ -448,8 +397,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 			{
 				initImageView();
 				
-				if (debugMode)
-					localizationLog.save("-------- STARTING PREDICTION NUMBER " + count + " --------\n");
+				if (thisApp.debugMode)
+					thisApp.localizationLog.save("-------- STARTING PREDICTION NUMBER " + thisApp.count + " --------\n");
 				
 				return;
 			}
@@ -482,28 +431,26 @@ public class MainActivity extends Activity implements OnTouchListener {
 				rssis = inData.getDoubleArray(LocalizeService.SCANARRAY_KEY);
 				
 				// Call to Training interface: Predict the location
-				prediction = localize.getEstLocation(rssis);
+				predObj.prediction = localize.getEstLocation(rssis);
 				
-				if (debugMode)
+				if (thisApp.debugMode)
 				{
-					// TESTING: Plot the prediction location (red icon)
-					origX = (float)prediction[0];
-					origY = (float)prediction[1];
-					plotOrigPoint(origX, origY);
+					predObj.setOrigCoords();
+					plotOrigPoint(predObj.origX, predObj.origY);
 					
 					long totalScanTime = inData.getLong(LocalizeService.TIME_KEY);
-					localizationLog.save("Time taken for scan: " + (totalScanTime / nanoMult) + "." + ((totalScanTime) % nanoMult) + " seconds\n");
+					thisApp.localizationLog.save("Time taken for scan: " + (totalScanTime / thisApp.nanoMult) + "." + ((totalScanTime) % thisApp.nanoMult) + " seconds\n");
 				}
 				
 				// Translate primitive double array to Double instance array
 				Double[] predToDouble = new Double[2];
-				predToDouble[0] = Double.valueOf(prediction[0]);
-				predToDouble[1] = Double.valueOf(prediction[1]);
+				predToDouble[0] = Double.valueOf(predObj.prediction[0]);
+				predToDouble[1] = Double.valueOf(predObj.prediction[1]);
 				
 				// Add the translated prediction to the array list
-				predictions.add(predToDouble);
+				predObj.predictions.add(predToDouble);
 							
-				if (predCounter >= numScans)
+				if (predObj.predCounter >= numScans)
 				{ // If number of predictions is equal to the number of scans, lets average
 					PredictionRunnable prun = new PredictionRunnable();
 					Thread predictThread = new Thread(prun);
@@ -511,9 +458,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 					
 					return;
 				}
-				else if (predCounter < numScans)
+				else if (predObj.predCounter < numScans)
 				{
-					predCounter++;
+					predObj.predCounter++;
 				}
 				
 				// Restart the service
@@ -531,11 +478,17 @@ public class MainActivity extends Activity implements OnTouchListener {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);		
-			
+		
 		// Receive and parse the intent from the load activity
 		Intent intent = getIntent();
 		apfilename = intent.getStringExtra(LoadActivity.AP_FILE);
 		rawFile = intent.getStringExtra(LoadActivity.LOCALIZE_FILE);
+		
+		// Get instance of this application
+		thisApp = (LocalizeApplication)this.getApplicationContext();
+		
+		// Initialize a new Prediction Object for use during this run of the application
+		predObj = new PredictionsObject(thisApp);
 		
 		// Set the initial values needed for this run
 		//(Needs to be called before writing to localization log in debug mode)
@@ -555,8 +508,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 	public void onSaveInstanceState(Bundle savedInstanceState)
 	{
 		System.out.println("Saving Instance state\n");
-		if (debugMode)
-			localizationLog.save("Save Instance State called\n");
+		if (thisApp.debugMode)
+			thisApp.localizationLog.save("Save Instance State called\n");
 	}
 	
 	/**
@@ -748,19 +701,19 @@ public class MainActivity extends Activity implements OnTouchListener {
 		
 		if (mapState == POINT) {
 			/* The point specified will be given by the localization function */
-			plotPoint(xCoord, yCoord);
+			plotPoint(predObj.xCoord, predObj.yCoord);
 			view.setImageMatrix(ld.matrix);
 		}
 		else
 		{
-			view.setImageMatrix(plotImage(xCoord, yCoord, ld.matrix));
+			view.setImageMatrix(plotImage(predObj.xCoord, predObj.yCoord, ld.matrix));
 		}
 		
-		if (debugMode)
+		if (thisApp.debugMode)
 		{
-			plotOrigPoint(origX, origY);
-			if (!withinRange)
-				plotErrPoint(errX, errY);
+			plotOrigPoint(predObj.origX, predObj.origY);
+			if (!predObj.withinRange)
+				plotErrPoint(predObj.errX, predObj.errY);
 		}
 		
 		return true;
@@ -776,8 +729,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 		localizeIntent.putExtra(LocalizeService.MESSENGER_KEY, messenger);
 		localizeIntent.putExtra(LocalizeService.OPTIONS_KEY, options);
 		localizeIntent.putExtra(LocalizeService.APTABLE_KEY, apTable);
-		localizeIntent.putExtra(LocalizeService.COUNT_KEY, count);
-		localizeIntent.putExtra(LocalizeService.DEBUG_KEY, debugMode);
+		localizeIntent.putExtra(LocalizeService.COUNT_KEY, thisApp.count);
+		localizeIntent.putExtra(LocalizeService.DEBUG_KEY, thisApp.debugMode);
 		
 		startService(localizeIntent);
 	}
@@ -792,35 +745,35 @@ public class MainActivity extends Activity implements OnTouchListener {
 	private void translatePoint(double[] prediction)
 	{
 		
-		if (count < 3)
+		if (thisApp.count < 3)
 		{
-			prevPrediction[0] = prediction[0];
-			prevPrediction[1] = prediction[1];
+			predObj.prevPrediction[0] = prediction[0];
+			predObj.prevPrediction[1] = prediction[1];
 		}
 		
-		if (debugMode)
+		if (thisApp.debugMode)
 		{
-			String res = "Predicted Location for run " + count++ + ": "+ prediction[0] + "," + prediction[1];
-			localizationLog.save(res + "\n");
+			String res = "Predicted Location for run " + thisApp.count++ + ": "+ prediction[0] + "," + prediction[1];
+			thisApp.localizationLog.save(res + "\n");
 		}
 		
 		// Set the coord values to the predicted values
-		xCoord = (float)prediction[0];
-		yCoord = (float)prediction[1];
+		predObj.xCoord = (float)prediction[0];
+		predObj.yCoord = (float)prediction[1];
 		
 		if (mapState == POINT) {
 			  // plotPoint(xCoord, yCoord);
-				movePoint(xCoord, yCoord);
+				movePoint(predObj.xCoord, predObj.yCoord);
 		}
 		else {
-				imgView.setImageMatrix(moveImage(xCoord, yCoord, ld.matrix));
+				imgView.setImageMatrix(moveImage(predObj.xCoord, predObj.yCoord, ld.matrix));
 		}
 		
-		if (!withinRange && debugMode)
-			plotErrPoint(errX, errY);
+		if (!predObj.withinRange && thisApp.debugMode)
+			plotErrPoint(predObj.errX, predObj.errY);
 
-		if (debugMode)
-			localizationLog.save("-------- STARTING PREDICTION NUMBER " + count + " --------\n");
+		if (thisApp.debugMode)
+			thisApp.localizationLog.save("-------- STARTING PREDICTION NUMBER " + thisApp.count + " --------\n");
 	}
 	
 	/**
@@ -830,10 +783,10 @@ public class MainActivity extends Activity implements OnTouchListener {
 	private void setInitialValues()
 	{
 		// Set up a localization log for testing/recording results
-		if (debugMode)
+		if (thisApp.debugMode)
 		{
-			locLog = "locLog_" + Calendar.getInstance().getTime().toString();
-			localizationLog = new AndroidLog(locLog + ".txt");
+			locLog = "LocLog_" + Calendar.getInstance().getTime().toString();
+			thisApp.localizationLog = new AndroidLog(locLog + ".txt");
 		}
 		
 		// Load AP Table
@@ -847,263 +800,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 		// Create a Messenger for communication back and forth
 		messenger = new Messenger(sHandler);
 		
-	}
-	
-	/**
-	 * Performs error correction on the predicted value and computes new values for error correction/analysis
-	 * 
-	 * @param prediction The predicted value computed after averaging
-	 * 
-	 */
-	private void errorCorrect(double[] tstprediction)
-	{
-		double[] correctedPrediction = new double[2];
-		double stdDev;
-		//double euclX; // Euclidean distance x value
-		//double euclY; // Euclidean distance y value
-		double euclTotal; // Actual Euclidean distance
-		
-		if (debugMode)
-			localizationLog.save("------Running Error Correction------\n");
-		
-		// Compute the adjusted/corrected prediction value
-		//correctedPrediction[0] = (avgEstCoeff * tstprediction[0]) + ((1 - avgEstCoeff) * prevPrediction[0]);
-		//correctedPrediction[1] = (avgEstCoeff * tstprediction[1]) + ((1 - avgEstCoeff) * prevPrediction[1]);
-		
-		correctedPrediction = computeWeightedPoint(tstprediction, prevPrediction, avgEstCoeff);
-		
-		if (debugMode)
-		{
-			localizationLog.save("Previous Prediction: " + prevPrediction[0] + "," + prevPrediction[1] + "\n");
-			localizationLog.save("Corrected Prediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
-		}
-		
-		// Compute Euclidean distance information
-		//euclX = tstprediction[0] - correctedPrediction[0];
-		//euclY = tstprediction[1] - correctedPrediction[1];
-		//euclX *= euclX;
-		//euclY *= euclY;
-		
-		euclTotal = computeEuclidean(tstprediction, correctedPrediction);
-		
-		if (debugMode)
-			localizationLog.save("Euclidean Total: " + euclTotal + "\n");
-		
-		// Compute standard deviation
-		stdDev = (stdDevCoeff * euclTotal) + ((1 - stdDevCoeff) * stdDevEst);
-		
-		if (debugMode)
-			localizationLog.save("Standard Deviation: " + stdDev + "\n");
-		
-		//localizationLog.save("Values to Compare:\ncorrectedPrediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
-		//localizationLog.save("Range Prediction: " + (prevPrediction[0] + (3 *stdDev)) + "," + (prevPrediction[1] + (3 *stdDev)) + "\n");
-		
-		// Compute euclidean distance between previous prediction and corrected prediction
-		//euclX = (prevPrediction[0] - correctedPrediction[0]);
-		//euclY = (prevPrediction[1] - correctedPrediction[1]);
-		//euclX *= euclX;
-		//euclY *= euclY;
-		
-		euclTotal = computeEuclidean(prevPrediction, correctedPrediction);
-		
-		if (debugMode)
-			localizationLog.save("Euclidean Distance between corrected and previous: " + euclTotal + "\n");
-		
-		// Check if we are within a certain range
-		if (euclTotal <= (stdDevFactor *stdDev))
-		{
-			// Only decrease the standard deviation radius factor if it is more than 3
-			if (stdDevFactor > 3)
-				stdDevFactor /= 2;
-			
-			// CORRECT VALUE: We are within the range, so adjust the values
-			if (debugMode)
-				localizationLog.save("WITHIN RANGE, update previous prediction\n");
-			
-			prevPrediction[0] = correctedPrediction[0];
-			prevPrediction[1] = correctedPrediction[1];
-			stdDevEst = stdDev;
-			withinRange = true;
-		}
-		else 
-		{
-			stdDevFactor *= 2; // Double the standard deviation radius factor
-			// THROWAWAY VALUE: Keep predicted value the same as the previous
-			if (debugMode)
-				localizationLog.save("NOT WITHIN RANGE, keep previous prediction the same\n");
-			
-			// Set the corrected Prediction coordinate values
-			errX = (float)correctedPrediction[0];
-			errY = (float)correctedPrediction[1];
-			withinRange = false;
-		}
-		
-		// Set our prediction to the value we deemed to be "Correct"
-		prediction[0] = prevPrediction[0];
-		prediction[1] = prevPrediction[1];
-		
-		return;
-	}
-	
-	/**
-	 * Average the predictions received from scanning and localizing
-	 * 
-	 * @return A double array consisting of the averaged prediction value
-	 */
-	//TODO: Synchronize with message handler so that predCounter will not change
-	private double[] averagePredictions()
-	{
-		double[] predictionAvg = new double[2]; // Returned average prediction
-		ArrayList<Double[]> adjustedPredictions;
-		double xPred = 0; // Prediction value in X direction
-		double yPred = 0; // Prediction value in Y direction
-		
-		// Only start excluding outliers after the third run of predictions
-		if (count >= 3)
-			adjustedPredictions = findPredictionsInRange(predictions);
-		else
-			adjustedPredictions = predictions;
-		
-		if (debugMode)
-			localizationLog.save("------Averaging Predictions------\n");
-		
-		// Go through each prediction in the adjusted array list and average
-		for (int i = 0; i < adjustedPredictions.size(); i++)
-		{	
-			if (debugMode)
-			{
-				localizationLog.save("Prediction " + i + ": " + adjustedPredictions.get(i)[0] + "," 
-						+ adjustedPredictions.get(i)[1] + "\n");
-			}
-			
-			// Sum prediction total
-			xPred += adjustedPredictions.get(i)[0];
-			yPred += adjustedPredictions.get(i)[1];
-		}
-		
-		// Do the averaging
-		predictionAvg[0] = xPred / predCounter;
-		predictionAvg[1] = yPred / predCounter;
-		
-		// Reset the predictions array list
-		predictions.clear();
-		
-		if (debugMode)
-			localizationLog.save("Average of prediction " + count + ": " + predictionAvg[0] + "," + predictionAvg[1] + "\n");
-		
-		// Plot the averaged point on the image
-		origX = (float)predictionAvg[0];
-		origY = (float)predictionAvg[1];
-		
-		return predictionAvg;
-	}
-	
-	/**
-	 * Finds the predictions/points that fall within the range of a reference prediction/point
-	 * 
-	 * @param rawPredictions The list of original predictions
-	 * 
-	 * @return A list of predictions that fall within the computed range
-	 */
-	private ArrayList<Double[]> findPredictionsInRange(ArrayList<Double[]> rawPredictions)
-	{
-		double refPtEuclDistance = -1, compEuclDistance = 0;
-		double[] thisPrediction = new double[2];
-		double[] refPrediction = new double[2];
-		ArrayList<Double[]> newPredictionsList = new ArrayList<Double[]>();
-		int refPtIndex = 0; // Index in the array list of our reference point/prediction
-		
-		if (debugMode)
-			localizationLog.save("--- Removing Extraneous Predictions ---\n");
-		
-		for (int i = 0; i < rawPredictions.size(); i++)
-		{
-			// Turn into primitive double array
-			thisPrediction[0] = rawPredictions.get(i)[0].doubleValue();
-			thisPrediction[1] = rawPredictions.get(i)[1].doubleValue();
-			
-			if (debugMode)
-				localizationLog.save("Prediction " + i + ": " + thisPrediction[0] + "," + thisPrediction[1] + "\n");
-			
-			// Find the euclidean distance between this point and previous predicted point
-			compEuclDistance = computeEuclidean(thisPrediction, prevPrediction);
-			
-			// Find the point/prediction with the shortest distance from the previously predicted location
-			if (refPtEuclDistance == -1 || compEuclDistance < refPtEuclDistance)
-			{
-				refPtEuclDistance = compEuclDistance;
-				refPtIndex = i; // Record this index for later
-			}
-		}
-		
-		if (debugMode)
-			localizationLog.save("Prediction using for reference point: " + refPtIndex + ", Euclidean Distance: " + refPtEuclDistance + "\n");
-		
-		// Set our reference point/prediction
-		refPrediction[0] = rawPredictions.get(refPtIndex)[0].doubleValue();
-		refPrediction[1] = rawPredictions.get(refPtIndex)[1].doubleValue();
-		
-		// Now lets pass through and see what predictions can be excluded
-		for (int i = 0; i < rawPredictions.size(); i++)
-		{
-			thisPrediction[0] = rawPredictions.get(i)[0].doubleValue();
-			thisPrediction[1] = rawPredictions.get(i)[1].doubleValue();
-			
-			compEuclDistance = computeEuclidean(thisPrediction, refPrediction);
-			
-			// If the distance between this point and our reference point
-			// is less than the twice the distance between the reference point and the previous prediction
-			// then add the point to our new predictions list
-			if (compEuclDistance <= (2 * refPtEuclDistance))
-			{
-				newPredictionsList.add(rawPredictions.get(i));
-			}
-		}
-		
-		return newPredictionsList;
-	}
-	
-	/**
-	 * Computes a corrected point based off of two points in the coordinate system
-	 * 
-	 * @param heavyPoint The point that will get the most weight
-	 * @param lightWeight The point that will get the least amount of weight
-	 * @param weight The weight that the heavy point will receive
-	 * 
-	 * @return The weighted point
-	 */
-	private static double[] computeWeightedPoint(double[] heavyPoint, double[] lightPoint, double weight)
-	{
-		double[] weightedPrediction = new double[2];
-		
-		// Compute the adjusted/corrected prediction value
-		weightedPrediction[0] = (weight * heavyPoint[0]) + ((1 - weight) * lightPoint[0]);
-		weightedPrediction[1] = (weight * heavyPoint[1]) + ((1 - weight) * lightPoint[1]);
-		
-		return weightedPrediction;
-	}
-	
-	/**
-	 * Computes the euclidean distance between two points
-	 * 
-	 * @param point1 The first point used in the calculation
-	 * @param point2 The second point used in the calculation
-	 * 
-	 * @return The euclidean distance between point 1 and point 2
-	 */
-	private static double computeEuclidean(double[] point1, double[] point2)
-	{
-		double euclX, euclY, euclTotal;
-		
-		euclX = point2[0] - point1[0];
-		euclY = point2[1] - point1[1];
-		
-		euclX *= euclX;
-		euclY *= euclY;
-		
-		euclTotal = Math.sqrt(euclX + euclY);
-		
-		return euclTotal;
 	}
 	
 	/**
@@ -1264,8 +960,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 		PointF scale = ld.getInitScale();
 
 		// Calculate the previous point for the trail
-		float calcX = (xCoord * scale.x) - 10;
-		float calcY = (yCoord * scale.y) - 10;
+		float calcX = (predObj.xCoord * scale.x) - 10;
+		float calcY = (predObj.yCoord * scale.y) - 10;
 
 		// Add a trail point
 		tview.trail(trailNdx, calcX, calcY);
@@ -1290,8 +986,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 			writtenToStorage = true; // Mark that we have written something to storage
 			os.writeBoolean(writtenToStorage); // Save marker that we have written to storage
 			
-			if (debugMode)
-				localizationLog.save("SAVED LOCALIZATION OBJECT:\n");
+			if (thisApp.debugMode)
+				thisApp.localizationLog.save("SAVED LOCALIZATION OBJECT:\n");
 			
 			os.close();
 			fos.close();
