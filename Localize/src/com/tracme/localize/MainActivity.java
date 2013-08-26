@@ -145,6 +145,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	private PointF center = new PointF();
 	public PointF transPoint = new PointF();
+	private PointF currPoint = new PointF();
 	
 	private int numScans = 5;
 	private int numScansPending;
@@ -843,34 +844,16 @@ public class MainActivity extends Activity implements OnTouchListener {
 	}
 	
 	/*
-	 * Function that will center a point on the map
-	 */
-	private Matrix plotImage(float x, float y, Matrix m) {
-		float[] mtxArr = new float[9];
-    PointF scale = ld.getInitScale();
-		
-		myDView.setX(center.x);
-		myDView.setY(center.y);
-		m.getValues(mtxArr);
-
-		mtxArr[Matrix.MTRANS_X] = center.x - (x * scale.x) + 25;
-		mtxArr[Matrix.MTRANS_Y] = center.y - (y * scale.y) + 25;
-
-		m.setValues(mtxArr);
-
-		tview.setX(mtxArr[Matrix.MTRANS_X]);
-		tview.setY(mtxArr[Matrix.MTRANS_Y]);
-		return m;
-	}
-	
-	/*
 	 * Functions that animates the movement of marker from one point to the next
 	 */
 	private void movePoint(float x, float y) {
 
-		float prevX = myDView.getX();
-		float prevY = myDView.getY();
-		tview.trail(trailNdx, prevX, prevY);
+		PointF scale = ld.getInitScale();
+		if (currPoint.x == 0) {
+		// Initial setting of the current point
+			currPoint.set(x, y);
+		}
+		tview.trail(trailNdx, (currPoint.x * scale.x) - 10, (currPoint.y * scale.y) - 10);
 
 		float calcX = ld.getAdjustedX(x);
 
@@ -908,24 +891,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 			}
 		});
 		myDView.startAnimation(anim);
-	}
-	
-	/*
-	 * Responsible for adding the trail in FOLLOW MODE
-	 */
-	private Matrix moveImage(float x, float y, Matrix m) {
-		PointF scale = ld.getInitScale();
-
-		// Calculate the previous point for the trail
-		float calcX = (xCoord * scale.x) - 10;
-		float calcY = (yCoord * scale.y) - 10;
-
-		// Add a trail point
-		tview.trail(trailNdx, calcX, calcY);
-		trailNdx++;
 		
-		animDone = true;
-		return plotImage(x, y, m);
+	  // Update the current point
+		currPoint.set(x, y);
 	}
 	
 	/**
@@ -953,70 +921,25 @@ public class MainActivity extends Activity implements OnTouchListener {
 	}
 	
 	/**
-	 * Functions that animates the movement of marker from one point to the next
-	 * @param x
-	 * @param y
-	 */
-	private void movePoint(float x, float y) {
-
-		float prevX = myDView.getX();
-		float prevY = myDView.getY();
-		tview.trail(trailNdx, prevX, prevY);
-
-		float calcX = ld.getAdjustedX(x);
-
-		float calcY = ld.getAdjustedY(y);
-
-		transPoint.set(calcX, calcY);
-
-		TranslateAnimation anim = new TranslateAnimation(0, calcX - prevX, 0, calcY
-				- prevY);
-		anim.setFillAfter(true);
-		anim.setDuration(1000);
-		anim.setAnimationListener(new AnimationListener() {
-			@Override
-			public void onAnimationEnd(Animation animation) {
-				animation.setFillAfter(false);
-				myDView.setX(transPoint.x);
-				myDView.setY(transPoint.y);
-
-				animDone = true;
-				trailNdx++;
-
-				System.out.println("trail ndx is " + trailNdx);
-			}
-
-			@Override
-			public void onAnimationRepeat(Animation animation) {
-				// TODO Auto-generated method stub
-
-			}
-
-			@Override
-			public void onAnimationStart(Animation animation) {
-				// TODO Auto-generated method stub
-
-			}
-		});
-		myDView.startAnimation(anim);
-	}
-	
-	/**
 	 * Responsible for adding the trail in FOLLOW MODE
 	 */
 	private Matrix moveImage(float x, float y, Matrix m) {
 		PointF scale = ld.getInitScale();
-
+		
 		// Calculate the previous point for the trail
-		float calcX = (predObj.xCoord * scale.x) - 10;
-		float calcY = (predObj.yCoord * scale.y) - 10;
+		float calcX = (currPoint.x * scale.x) - 10;
+		float calcY = (currPoint.y * scale.y) - 10;
+
+		m = plotImage(x, y, m);
+		// Update current point
+		currPoint.set(x, y);
 
 		// Add a trail point
 		tview.trail(trailNdx, calcX, calcY);
 		trailNdx++;
 
 		animDone = true;
-		return plotImage(x, y, m);
+		return m;
 	}
 	
 	/**
