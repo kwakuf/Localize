@@ -835,10 +835,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		tview.setX(ld.eventMatrix[Matrix.MTRANS_X]);
 		tview.setY(ld.eventMatrix[Matrix.MTRANS_Y]);
 
-		tview.setPivotX(ld.mid.x);
-		tview.setPivotY(ld.mid.y);
-		tview.setScaleX(ld.eventMatrix[Matrix.MSCALE_X]);
-		tview.setScaleY(ld.eventMatrix[Matrix.MSCALE_Y]);
+		tview.update(ld.eventMatrix[Matrix.MSCALE_X], ld.eventMatrix[Matrix.MSCALE_Y]);
 
 		return;
 	}
@@ -912,6 +909,10 @@ public class MainActivity extends Activity implements OnTouchListener {
 
 		mtxArr[Matrix.MTRANS_X] = center.x - (x * scale.x) + 25;
 		mtxArr[Matrix.MTRANS_Y] = center.y - (y * scale.y) + 25;
+		
+		// Return the scale to 1 to avoid any potential issues
+		mtxArr[Matrix.MSCALE_X] = 1;
+		mtxArr[Matrix.MSCALE_Y] = 1;
 
 		m.setValues(mtxArr);
 
@@ -1037,6 +1038,7 @@ class MyDrawableView extends View {
  */
 class TrailView extends View {
 	private ShapeDrawable[] trail = new ShapeDrawable[20];
+	private PointF[] points = new PointF[20];
 	private int plotCnt = 0;
 
 	private int diameter = 20;
@@ -1075,7 +1077,28 @@ class TrailView extends View {
 			trail[ndx].setBounds((int) x + 10, (int) y + 10, (int) x + diameter + 10,
 					(int) y + diameter + 10);
 
+			points[ndx] = new PointF(x, y);
+			
 			invalidate();
 		}
 	}
+	
+	public void update(float scaleX, float scaleY) {
+		PointF pt;
+		float xVal, yVal;
+
+		plotCnt = (plotCnt > 20) ? (20) : (plotCnt);
+		for (int i = 0; i < plotCnt; i++) {
+      pt = points[i];
+			xVal = pt.x * scaleX;
+			yVal = pt.y * scaleY;
+
+			xVal = Math.round(xVal);
+			yVal = Math.round(yVal);
+			trail[i].setBounds((int) xVal + 10, (int) yVal + 10, (int) xVal
+					+ diameter + 10, (int) yVal + diameter + 10);
+		
+			invalidate();
+		}
+	}	
 }
