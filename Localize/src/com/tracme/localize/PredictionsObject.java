@@ -15,7 +15,7 @@ import java.util.ArrayList;
 public class PredictionsObject {
 	
 	/** Localize Application which contains global fields */
-	LocalizeApplication thisApp;
+	private LocalizeApplication thisApp;
 	
 	/** x coordinate for plotting on the image view */
 	protected float xCoord = 0;
@@ -45,7 +45,7 @@ public class PredictionsObject {
 	private int stdDevFactor = 3;
 	
 	/** Coefficient for average estimation location */
-	private double avgEstCoeff = 0.7;
+	private double avgEstCoeff = 0.8;
 	
 	/** Coefficient for standard deviation */
 	private double stdDevCoeff = 0.8;
@@ -63,6 +63,7 @@ public class PredictionsObject {
 	protected boolean withinRange = true;
 	
 	/**
+	 * Constructor for Prediction Object, initializing the Global fields of the LocalizeApplication
 	 * 
 	 * @param app Global LocalizationApp Object which holds global fields
 	 */
@@ -73,9 +74,7 @@ public class PredictionsObject {
 	
 	/**
 	 * Performs error correction on the predicted value and computes new values for error correction/analysis
-	 * 
-	 * @param prediction The predicted value computed after averaging
-	 * 
+	 *  
 	 */
 	protected void errorCorrect()
 	{
@@ -94,6 +93,7 @@ public class PredictionsObject {
 			thisApp.localizationLog.save("Corrected Prediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
 		}
 		
+		// Get Euclidean Distance between averaged prediction and corrected prediction
 		euclTotal = LocalizeMath.computeEuclidean(prediction, correctedPrediction);
 		
 		if (thisApp.debugMode)
@@ -105,6 +105,7 @@ public class PredictionsObject {
 		if (thisApp.debugMode)
 			thisApp.localizationLog.save("Standard Deviation: " + stdDev + "\n");
 		
+		// Get the Euclidean distance between the previous prediction and the corrected prediction
 		euclTotal = LocalizeMath.computeEuclidean(prevPrediction, correctedPrediction);
 		
 		if (thisApp.debugMode)
@@ -152,13 +153,39 @@ public class PredictionsObject {
 	 * @return A double array consisting of the averaged prediction value
 	 */
 	//TODO: Synchronize with message handler so that predCounter will not change
-	void averagePredictions()
+	protected void averagePredictions()
 	{
 		double[] predictionAvg = new double[2]; // Returned average prediction
-		ArrayList<Double[]> adjustedPredictions;
 		double xPred = 0; // Prediction value in X direction
 		double yPred = 0; // Prediction value in Y direction
 		
+		// Start computing the weighted average on the third run
+		if (thisApp.count >= 3)
+			predictionAvg = LocalizeMath.weightRawPredictions(predictions, prevPrediction,
+					 thisApp.localizationLog, thisApp.debugMode);
+		else
+		{
+			// Average the predictions we already have
+			for (int i = 0; i < predictions.size(); i++)
+			{
+				if (thisApp.debugMode)
+				{
+					thisApp.localizationLog.save("Prediction " + i + ": " + predictions.get(i)[0] + "," 
+							+ predictions.get(i)[1] + "\n");
+				}
+				
+				// Sum prediction total
+				xPred += predictions.get(i)[0];
+				yPred += predictions.get(i)[1];
+			}
+			
+			// Do the averaging
+			predictionAvg[0] = xPred / predCounter;
+			predictionAvg[1] = yPred / predCounter;
+		}
+		
+		/**
+		 *********** USE THIS BLOCK WHEN ELIMINATING OUTLIERS USING (LocalizeMath.findPredictionsInRang()...
 		// Only start excluding outliers after the third run of predictions
 		if (thisApp.count >= 3)
 			adjustedPredictions = LocalizeMath.findPredictionsInRange(predictions, prevPrediction, 
@@ -187,6 +214,8 @@ public class PredictionsObject {
 		predictionAvg[0] = xPred / predCounter;
 		predictionAvg[1] = yPred / predCounter;
 		
+		*/
+		
 		// Reset the predictions array list
 		predictions.clear();
 		
@@ -200,9 +229,11 @@ public class PredictionsObject {
 		prediction = predictionAvg;
 	}
 	
+	/**
+	 * Sets the coordinate values for the original prediction
+	 */
 	protected void setOrigCoords()
 	{
-		// TESTING: Plot the prediction location (red icon)
 		origX = (float)prediction[0];
 		origY = (float)prediction[1];
 	}

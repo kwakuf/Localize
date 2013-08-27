@@ -22,6 +22,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.PointF;
 import android.graphics.drawable.Drawable;
@@ -158,6 +159,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 	private boolean tempMap;	
 	public boolean animDone = true;
 
+	float prevX = 0;
+	float prevY = 0;
 	
 	/****************** END *************************/
 		
@@ -316,6 +319,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 		@Override
 		public void run()
 		{
+			long startTime = 0;
+			long endTime = 0;
+			
 			try {
 				if (thisApp.debugMode)
 					startTime = System.nanoTime();
@@ -434,11 +440,13 @@ public class MainActivity extends Activity implements OnTouchListener {
 				
 				if (thisApp.debugMode)
 				{
+					// TESTING: Plot the prediction location (red icon)
 					predObj.setOrigCoords();
 					plotOrigPoint(predObj.origX, predObj.origY);
 					
 					long totalScanTime = inData.getLong(LocalizeService.TIME_KEY);
-					thisApp.localizationLog.save("Time taken for scan: " + (totalScanTime / thisApp.nanoMult) + "." + ((totalScanTime) % thisApp.nanoMult) + " seconds\n");
+					thisApp.localizationLog.save("Time taken for scan: " + 
+							(totalScanTime / thisApp.nanoMult) + "." + ((totalScanTime) % thisApp.nanoMult) + " seconds\n");
 				}
 				
 				// Translate primitive double array to Double instance array
@@ -715,7 +723,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 				plotErrPoint(predObj.errX, predObj.errY);
 		}
 		else
-			view.setImageMatrix(plotImage(xCoord, yCoord, ld.matrix));
+			view.setImageMatrix(plotImage(predObj.xCoord, predObj.yCoord, ld.matrix));
 		
 		return true;
 	}
@@ -809,8 +817,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 	 */
 	private void initTraining()
 	{
-		//initialProgBar.setVisibility(View.VISIBLE);
-		System.out.println("GOING TO ESTIMATE LOCATION...");
 		localize = new TestingTask(rawFile, trainFile);
 		
 		// Make instance of runnable class for initial load of models..
@@ -820,8 +826,10 @@ public class MainActivity extends Activity implements OnTouchListener {
 		initialLoadThread.start();
 	}
 	
-	/*
-	 * Function that will plot the point correctly regardless of scale or position
+	/**
+	 * Function that plots the point correctly regardless of scale or position
+	 * @param x The predicted x coordinate
+	 * @param y The predicted y coordinate
 	 */
 	private void plotPoint(float x, float y) {
 		// TODO adjust for rotation
@@ -840,6 +848,39 @@ public class MainActivity extends Activity implements OnTouchListener {
 		tview.setScaleX(ld.eventMatrix[Matrix.MSCALE_X]);
 		tview.setScaleY(ld.eventMatrix[Matrix.MSCALE_Y]);
 
+		return;
+	}
+	/**
+	 * Plots the adjusted/corrected predicted point correctly on the image. Takes into consideration the scaling
+	 * and positioning of the image. This method is only called when in debug mode.
+	 * 
+	 * @param x The predicted x coordinate
+	 * @param y The predicted y coordinate
+	 */
+	private void plotErrPoint(float x, float y) {
+		// TODO adjust for rotation
+
+		errView.setVisibility(View.INVISIBLE);
+		errView.setX(ld.getAdjustedX(x));
+		errView.setY(ld.getAdjustedY(y));
+		errView.setVisibility(View.VISIBLE);
+		return;
+	}
+	
+	/**
+	 * Plots the originally predicted point correctly on the image. Takes into consideration the scaling
+	 * and positioning of the image. This method is only called when in debug mode.
+	 * 
+	 * @param x The predicted x coordinate
+	 * @param y The predicted y coordinate
+	 */
+	private void plotOrigPoint(float x, float y) {
+		// TODO adjust for rotation
+
+		origView.setVisibility(View.INVISIBLE);
+		origView.setX(ld.getAdjustedX(x));
+		origView.setY(ld.getAdjustedY(y));
+		origView.setVisibility(View.VISIBLE);
 		return;
 	}
 	
@@ -893,6 +934,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 		myDView.startAnimation(anim);
 		
 	  // Update the current point
+		prevX = x;
+		prevY = y;
 		currPoint.set(x, y);
 	}
 	
@@ -1027,6 +1070,14 @@ class MyDrawableView extends View {
 		mDrawable.setBounds(x, y, x + width, y + height);
 	}
 
+	protected void setDrawColor(String color)
+	{
+		if (color == "Blue")
+			mDrawable.getPaint().setColor(Color.BLUE);
+		else if (color == "Red")
+			mDrawable.getPaint().setColor(Color.RED);
+	}
+	
 	protected void onDraw(Canvas canvas) {
 		mDrawable.draw(canvas);
 	}
