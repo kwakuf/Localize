@@ -112,12 +112,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/** Name of the training file. Used by TestingTask */
 	private String trainFile = "train_p0.0.txt_sub_1.0.1.txt";
 	
-	/** Number of classes in x dimension */
-	private int nX = 100;
-	
-	/** Number of classes in y dimension */
-	private int nY = 100;
-	
 	/*********************END********************************/
 	
 	/** Progress Bar used to show initial loading of localization classes */
@@ -148,7 +142,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 	public PointF transPoint = new PointF();
 	private PointF currPoint = new PointF();
 	
-	private int numScans = 5;
 	private int numScansPending;
 	public int trailNdx = 0;
 
@@ -165,7 +158,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	/****************** END *************************/
 		
 	/** Instance of our scan handler to handle incoming messages */
-	private ScanHandler sHandler = new ScanHandler();
+	private ThreadHandler sHandler = new ThreadHandler();
 	
 	/** Messenger for receiving messages from other threads */
 	private Messenger messenger;
@@ -327,7 +320,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 					startTime = System.nanoTime();
 				
 				// Setup the model classes
-				localize.setNumClasses(nX, nY, initialProgBar);
+				localize.setNumClasses(thisApp.nX, thisApp.nY, initialProgBar);
 				// Once models are loaded, send a message to the main thread
 				
 				if (thisApp.debugMode)
@@ -343,7 +336,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 				messenger.send(msg);
 				
 				if (thisApp.debugMode)
-					thisApp.localizationLog.save("Time taken to load X" + nX + ", Y" + nY + " classes: " +
+					thisApp.localizationLog.save("Time taken to load X" + thisApp.nX + ", Y" + thisApp.nY + " classes: " +
 							((endTime - startTime) / thisApp.nanoMult) + "." + ((endTime - startTime) % thisApp.nanoMult) + " seconds\n" );
 				
 			} catch (Exception e)
@@ -359,7 +352,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	 * started by the activity
 	 *  
 	 */
-	private class ScanHandler extends Handler {	
+	private class ThreadHandler extends Handler {	
 		
 		/**
 		 * Method that is called when a message is received from a Messenger
@@ -417,7 +410,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 				initialProgBar = (ProgressBar) findViewById(R.id.initProgBar);
 				
 				// Set the max value of the progress bar to the number of classes that we must load
-				initialProgBar.setMax(nX+nY);
+				initialProgBar.setMax(thisApp.nX+thisApp.nY);
 				
 				// Initialize loading of the model classes (starts a new thread)
 				initTraining();
@@ -457,7 +450,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 				// Add the translated prediction to the array list
 				predObj.predictions.add(predToDouble);
 							
-				if (predObj.predCounter >= numScans)
+				if (predObj.predCounter >= thisApp.numScans)
 				{ // If number of predictions is equal to the number of scans, lets average
 					PredictionRunnable prun = new PredictionRunnable();
 					Thread predictThread = new Thread(prun);
@@ -465,7 +458,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 					
 					return;
 				}
-				else if (predObj.predCounter < numScans)
+				else if (predObj.predCounter < thisApp.numScans)
 				{
 					predObj.predCounter++;
 				}
@@ -503,11 +496,13 @@ public class MainActivity extends Activity implements OnTouchListener {
 		
 		setContentView(R.layout.activity_main);
 		
-		
 		// Attempt to load the localization data (start a new thread to do so)
 		LoadPersistenceRunnable lpr = new LoadPersistenceRunnable();
 		final Thread loadLocThread = new Thread(lpr);
 		loadLocThread.start();
+		
+		if (thisApp.debugMode)
+			thisApp.localizationLog.save("Localization For: " + rawFile + "\n");
 		
 	}
 	
@@ -545,6 +540,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 		origView.setDrawColor("Red");
 		
 		tview = (TrailView) findViewById(R.id.trailView1);
+		//Setting the trail to invisible for now
+		tview.setVisibility(View.INVISIBLE);
 		
 		imgView.setOnTouchListener(this);
 		
@@ -553,7 +550,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		
 		ld = new LocalizeDisplay();
 		ld.drawable = getResources().getDrawable(R.drawable.cc_1);
-		ld.calcInitScale();
+		ld.calcInitScale(thisApp.dimX, thisApp.dimY);
 		
 	}
 	
@@ -588,9 +585,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 					public void onClick(DialogInterface dialog, int which) {
 						// confirmValues();
 						// SAVE THE PROGRESS BAR VALUE SOMEWHERE
-						numScans = (numScansPending == 0) ? (1) : (numScansPending);
+						thisApp.numScans = (numScansPending == 0) ? (1) : (numScansPending);
 						// Set the option for the next intent
-						options.setNumScans(numScans);
+						options.setNumScans(thisApp.numScans);
 
 						mapState = tempMap;
 						dialog.dismiss();
@@ -619,7 +616,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 		});
 
 		sbBetVal.setMax(10);
-		sbBetVal.setProgress(numScans);
+		sbBetVal.setProgress(thisApp.numScans);
 		sbBetVal.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
 
 			@Override
@@ -685,7 +682,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 			break;
 		case MotionEvent.ACTION_UP:
 		case MotionEvent.ACTION_POINTER_UP:
-			ld.checkEdgeCases(view);
+//			ld.checkEdgeCases(view);
 
 			ld.mode = LocalizeDisplay.NONE;
 			break;
@@ -716,14 +713,16 @@ public class MainActivity extends Activity implements OnTouchListener {
 			view.setImageMatrix(plotImage(predObj.xCoord, predObj.yCoord, ld.matrix));
 		}
 		
+		// This doesnt account for the map state -- probably not a big deal though 
 		if (thisApp.debugMode)
 		{
 			plotOrigPoint(predObj.origX, predObj.origY);
 			if (!predObj.withinRange)
 				plotErrPoint(predObj.errX, predObj.errY);
 		}
-		else
-			view.setImageMatrix(plotImage(predObj.xCoord, predObj.yCoord, ld.matrix));
+		// Not sure why this is here
+		/*else
+			view.setImageMatrix(plotImage(predObj.xCoord, predObj.yCoord, ld.matrix));*/
 		
 		return true;
 	}
@@ -901,6 +900,9 @@ public class MainActivity extends Activity implements OnTouchListener {
 		float calcY = ld.getAdjustedY(y);
 
 		transPoint.set(calcX, calcY);
+		
+		prevX = myDView.getX();
+		prevY = myDView.getY();
 
 		TranslateAnimation anim = new TranslateAnimation(0, calcX - prevX, 0, calcY
 				- prevY);
@@ -934,8 +936,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 		myDView.startAnimation(anim);
 		
 	  // Update the current point
-		prevX = x;
-		prevY = y;
 		currPoint.set(x, y);
 	}
 	
@@ -956,6 +956,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 		mtxArr[Matrix.MTRANS_X] = center.x - (x * scale.x) + 25;
 		mtxArr[Matrix.MTRANS_Y] = center.y - (y * scale.y) + 25;
 
+		mtxArr[Matrix.MSCALE_X] = 1; 
+		mtxArr[Matrix.MSCALE_Y] = 1;
 		m.setValues(mtxArr);
 
 		tview.setX(mtxArr[Matrix.MTRANS_X]);

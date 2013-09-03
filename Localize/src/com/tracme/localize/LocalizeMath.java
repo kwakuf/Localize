@@ -152,11 +152,12 @@ public class LocalizeMath {
 		
 		for (int i = 0; i < rawPredictions.size(); i++)
 		{
-			if (debugMode)
-				localizationLog.save("Prediction " + i + ": " + tmpPrediction[0] + "," + tmpPrediction[1] + "\n");
 			
 			tmpPrediction[0] = rawPredictions.get(i)[0].doubleValue();
 			tmpPrediction[1] = rawPredictions.get(i)[1].doubleValue();
+		
+			if (debugMode)
+				localizationLog.save("Prediction " + i + ": " + tmpPrediction[0] + "," + tmpPrediction[1] + "\n");
 			
 			euclDistance = computeEuclidean(tmpPrediction, prevPrediction);
 			

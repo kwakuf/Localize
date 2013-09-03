@@ -110,14 +110,23 @@ public class LoadActivity extends Activity {
 		buildings = new ArrayList<BuildingData>();
 		
 		BuildingData campusCenter = new BuildingData("Campus Center");
-		FloorData floor1 = new FloorData("FirstFloor", "Campus Center", "cc1_81_nexus.txt", "apcc1_76_nexus.txt", 1);
-		FloorData upperlevel = new FloorData("UpperLevel", "Campus Center", "cc1_76_cluster20.txt", "apcc1_76_cluster20.txt", 0);
+		FloorData floor1 = new FloorData("First Floor", "Campus Center", "cc1_76_nexus.txt", "apcc1_76_nexus.txt", 1);
+		FloorData floor1_20 = new FloorData("Floor1 20", "Campus Center", "cc1_76_cluster20.txt", "apcc1_76_cluster20.txt", 0);
+		FloorData floor1_40 = new FloorData("Floor1 40", "Campus Center", "cc1_76_cluster40.txt", "apcc1_76_cluster40.txt", 1);
+		FloorData floor1_60 = new FloorData("Floor1 60", "Campus Center", "cc1_76_cluster60.txt", "apcc1_76_cluster60.txt", 2);
+		FloorData floor1_80 = new FloorData("Floor1 80", "Campus Center", "cc1_76_cluster80.txt", "apcc1_76_cluster80.txt", 3);
+		FloorData floor1_138 = new FloorData("Floor1 138", "Campus Center", "cc1_76_nexus.txt", "apcc1_76_nexus.txt", 4);
 		campusCenter.addFloor(floor1);
-		campusCenter.addFloor(upperlevel);
+		campusCenter.addFloor(floor1_20);
+		campusCenter.addFloor(floor1_40);
+		campusCenter.addFloor(floor1_60);
+		campusCenter.addFloor(floor1_80);
+		campusCenter.addFloor(floor1_138);
+		//campusCenter.addFloor(upperlevel);
 		
 		BuildingData wheatleyHall = new BuildingData("Wheatley Hall");
-		FloorData floor2 = new FloorData("SecondFloor", "Wheatley Hall", "cc1_76_cluster30.txt", "apcc1_76_cluster30.txt", 2);
-		wheatleyHall.addFloor(floor2);
+		FloorData floor1_81 = new FloorData("81 Points", "Campus Center", "cc1_81_nexus.txt", "apcc1_76_nexus.txt", 1);
+		wheatleyHall.addFloor(floor1_81);
 		
 		buildings.add(campusCenter);
 		buildings.add(wheatleyHall);

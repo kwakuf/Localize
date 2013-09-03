@@ -14,6 +14,9 @@ import java.util.ArrayList;
  */
 public class PredictionsObject {
 	
+	/** The minimum value that the deviation radius factor (devFactor) may be */
+	private final int devFactorMin = 3;
+	
 	/** Localize Application which contains global fields */
 	private LocalizeApplication thisApp;
 	
@@ -23,10 +26,10 @@ public class PredictionsObject {
 	/** y coordinate for plotting on the image view */
 	protected float yCoord = 0;
 	
-	/** x coordinate for plotting the original predicted location */
+	/** x coordinate for plotting the raw/averaged predicted location */
 	protected float origX = 0;
 	
-	/** y coordinate for plotting the original predicted location */
+	/** y coordinate for plotting the raw/averaged predicted location */
 	protected float origY = 0;
 	
 	/** x coordinate for plotting the error corrected predicted location */
@@ -38,17 +41,17 @@ public class PredictionsObject {
 	/** Previously predicted location */
 	protected double[] prevPrediction = new double[2];
 	
-	/** Previously estimated standard deviation */
-	private double stdDevEst = 0;
+	/** Previously estimated deviation */
+	private double devEst = 0;
 	
-	/** Factor for standard deviation radius of the previous prediction */
-	private int stdDevFactor = 3;
+	/** Factor for deviation radius of the previous prediction */
+	private int devFactor;
 	
 	/** Coefficient for average estimation location */
 	private double avgEstCoeff = 0.8;
 	
-	/** Coefficient for standard deviation */
-	private double stdDevCoeff = 0.8;
+	/** Coefficient for deviation */
+	private double devCoeff = 0.8;
 	
 	/** Predicted value of the location we are currently in */
 	double[] prediction = new double[2];
@@ -64,27 +67,31 @@ public class PredictionsObject {
 	
 	/**
 	 * Constructor for Prediction Object, initializing the Global fields of the LocalizeApplication
+	 * Initializes the deviation to be equal to the minimum value
 	 * 
 	 * @param app Global LocalizationApp Object which holds global fields
 	 */
 	public PredictionsObject(LocalizeApplication app)
 	{
 		thisApp = app;
+		devFactor = devFactorMin;
 	}
 	
 	/**
 	 * Performs error correction on the predicted value and computes new values for error correction/analysis
+	 * The point of this method is to keep the predicted value within a certain range, so that the predicted
+	 * value does not jump around. It is meant to remove inconsistencies.
 	 *  
 	 */
 	protected void errorCorrect()
 	{
 		double[] correctedPrediction = new double[2];
-		double stdDev;
-		double euclTotal; // Actual Euclidean distance
+		double euclTotal;
 		
 		if (thisApp.debugMode)
 			thisApp.localizationLog.save("------Running Error Correction------\n");
 		
+		// Get the "corrected" prediction (a weighted value based on this prediction and previous prediction)
 		correctedPrediction = LocalizeMath.computeWeightedPoint(prediction, prevPrediction, avgEstCoeff);
 		
 		if (thisApp.debugMode)
@@ -92,19 +99,7 @@ public class PredictionsObject {
 			thisApp.localizationLog.save("Previous Prediction: " + prevPrediction[0] + "," + prevPrediction[1] + "\n");
 			thisApp.localizationLog.save("Corrected Prediction: " + correctedPrediction[0] + "," + correctedPrediction[1] + "\n");
 		}
-		
-		// Get Euclidean Distance between averaged prediction and corrected prediction
-		euclTotal = LocalizeMath.computeEuclidean(prediction, correctedPrediction);
-		
-		if (thisApp.debugMode)
-			thisApp.localizationLog.save("Euclidean Total: " + euclTotal + "\n");
-		
-		// Compute standard deviation
-		stdDev = (stdDevCoeff * euclTotal) + ((1 - stdDevCoeff) * stdDevEst);
-		
-		if (thisApp.debugMode)
-			thisApp.localizationLog.save("Standard Deviation: " + stdDev + "\n");
-		
+				
 		// Get the Euclidean distance between the previous prediction and the corrected prediction
 		euclTotal = LocalizeMath.computeEuclidean(prevPrediction, correctedPrediction);
 		
@@ -112,24 +107,28 @@ public class PredictionsObject {
 			thisApp.localizationLog.save("Euclidean Distance between corrected and previous: " + euclTotal + "\n");
 		
 		// Check if we are within a certain range
-		if (euclTotal <= (stdDevFactor *stdDev))
+		if (euclTotal <= (devFactor * devEst))
 		{
-			// Only decrease the standard deviation radius factor if it is more than 3
-			if (stdDevFactor > 3)
-				stdDevFactor /= 2;
+			// Only decrease the deviation radius factor if it is more than 3
+			if (devFactor > 3)
+				devFactor /= 2;
 			
-			// CORRECT VALUE: We are within the range, so adjust the values
+			// Compute and set the new deviation factor 
+			devEst = (devCoeff * euclTotal) + ((1 - devCoeff) * devEst);
+			
+			// KEEP VALUE: We are within the range, so adjust the values
 			if (thisApp.debugMode)
 				thisApp.localizationLog.save("WITHIN RANGE, update previous prediction\n");
 			
 			prevPrediction[0] = correctedPrediction[0];
 			prevPrediction[1] = correctedPrediction[1];
-			stdDevEst = stdDev;
+			
+			// Mark that we were within range (for plotting the error corrected point in debug mode)
 			withinRange = true;
 		}
 		else 
 		{
-			stdDevFactor *= 2; // Double the standard deviation radius factor
+			devFactor *= 2; // Double the deviation radius factor
 			// THROWAWAY VALUE: Keep predicted value the same as the previous
 			if (thisApp.debugMode)
 				thisApp.localizationLog.save("NOT WITHIN RANGE, keep previous prediction the same\n");
@@ -137,6 +136,8 @@ public class PredictionsObject {
 			// Set the corrected Prediction coordinate values
 			errX = (float)correctedPrediction[0];
 			errY = (float)correctedPrediction[1];
+			
+			// Mark that we were *not* within range (for plotting the error corrected point in debug mode)
 			withinRange = false;
 		}
 		
@@ -152,7 +153,6 @@ public class PredictionsObject {
 	 * 
 	 * @return A double array consisting of the averaged prediction value
 	 */
-	//TODO: Synchronize with message handler so that predCounter will not change
 	protected void averagePredictions()
 	{
 		double[] predictionAvg = new double[2]; // Returned average prediction
@@ -182,10 +182,27 @@ public class PredictionsObject {
 			// Do the averaging
 			predictionAvg[0] = xPred / predCounter;
 			predictionAvg[1] = yPred / predCounter;
+			
+			// Once we have our first and second prediction, compute the euclidean distance
+			// so that we can get the deviation
+			if (thisApp.count == 2)
+			{
+				double[] firstPrediction = prediction;
+				double[] secondPrediction = predictionAvg;
+				double euclTotal = LocalizeMath.computeEuclidean(firstPrediction, secondPrediction);
+				
+				// Compute deviation
+				devEst = (devCoeff * euclTotal) + ((1 - devCoeff) * devEst);
+				
+				if (thisApp.debugMode)
+					thisApp.localizationLog.save("Initial Deviation: " + devEst + "\n");
+			}
+			
 		}
 		
 		/**
-		 *********** USE THIS BLOCK WHEN ELIMINATING OUTLIERS USING (LocalizeMath.findPredictionsInRang()...
+		 *********** USE THIS BLOCK WHEN ELIMINATING OUTLIERS USING (LocalizeMath.findPredictionsInRange()...
+		 * REPLACE THE IF/ELSE Block ABOVE if using the findPredictionsInRange Method
 		// Only start excluding outliers after the third run of predictions
 		if (thisApp.count >= 3)
 			adjustedPredictions = LocalizeMath.findPredictionsInRange(predictions, prevPrediction, 
@@ -214,7 +231,7 @@ public class PredictionsObject {
 		predictionAvg[0] = xPred / predCounter;
 		predictionAvg[1] = yPred / predCounter;
 		
-		*/
+		*****************************************************************/
 		
 		// Reset the predictions array list
 		predictions.clear();
