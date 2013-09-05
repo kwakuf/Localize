@@ -1,23 +1,18 @@
 package com.tracme.localize;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.concurrent.ExecutionException;
 
 import com.tracme.R;
 import com.tracme.training.TestingTask;
 import com.tracme.util.*;
 
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -25,9 +20,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.PointF;
-import android.graphics.drawable.Drawable;
 import android.graphics.drawable.ShapeDrawable;
-import android.graphics.drawable.TransitionDrawable;
 import android.graphics.drawable.shapes.OvalShape;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
