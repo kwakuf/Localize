@@ -38,9 +38,6 @@ public class LoadActivity extends Activity {
 	/** Drop-down list used for selecting floor in the building */
 	private Spinner floorSpinner;
 	
-	/** Button to start the main activity */
-	private Button goButton;
-	
 	/** Name of the localization file we need to load */
 	private String locFileName = null;
 	
@@ -73,10 +70,6 @@ public class LoadActivity extends Activity {
 	    addLocationSpinnerListener();
 	    addFloorSpinnerListener();
 	    populateList();
-	}
-	
-	public void addActivityListener()
-	{
 	}
 	
 	/**

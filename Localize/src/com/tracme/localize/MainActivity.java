@@ -49,7 +49,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 import android.widget.SeekBar.OnSeekBarChangeListener;
-import android.widget.ToggleButton;
 
 /**
  * Main Activity for TracMe localization. 
@@ -165,11 +164,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	/** Flag specifying whether our localization data has been written to storage yet */
 	private boolean writtenToStorage = false;
-	
-	/** Flag specifying that initial loading is complete. This flag is used to let us know that
-	 * the localization data can be stored
-	 */
-	private boolean finishedLoading = false;
 	
 	/**
 	 * Nested runnable class that handles predicting the user's location and performing error
@@ -325,8 +319,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 				
 				if (thisApp.debugMode)
 					endTime = System.nanoTime();
-				
-				finishedLoading = true;
 				
 				Message msg = Message.obtain();
 				// Tell the main thread that we are done loading
@@ -737,7 +729,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 		localizeIntent.putExtra(LocalizeService.MESSENGER_KEY, messenger);
 		localizeIntent.putExtra(LocalizeService.OPTIONS_KEY, options);
 		localizeIntent.putExtra(LocalizeService.APTABLE_KEY, apTable);
-		localizeIntent.putExtra(LocalizeService.COUNT_KEY, thisApp.count);
 		localizeIntent.putExtra(LocalizeService.DEBUG_KEY, thisApp.debugMode);
 		
 		startService(localizeIntent);
@@ -776,6 +767,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 				imgView.setImageMatrix(moveImage(predObj.xCoord, predObj.yCoord, ld.matrix));
 		}
 		
+		// When we aren't within the range, plot the error corrected point when we are in debug mode
 		if (!predObj.withinRange && thisApp.debugMode)
 			plotErrPoint(predObj.errX, predObj.errY);
 
@@ -827,6 +819,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	/**
 	 * Function that plots the point correctly regardless of scale or position
+	 * 
 	 * @param x The predicted x coordinate
 	 * @param y The predicted y coordinate
 	 */
@@ -1027,7 +1020,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 			ObjectInputStream ois = new ObjectInputStream(fis);
 			localize = (TestingTask)ois.readObject();
 			writtenToStorage = (boolean)ois.readBoolean();
-			finishedLoading = true;
 			ois.close();
 			fis.close();
 			return true;
