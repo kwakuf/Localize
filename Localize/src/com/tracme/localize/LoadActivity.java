@@ -14,7 +14,6 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
-import android.widget.Button;
 import android.widget.Toast;
 
 /**
@@ -59,8 +58,7 @@ public class LoadActivity extends Activity {
 	    super.onCreate(savedInstanceState);
 	
 	    setContentView(R.layout.activity_load);
-	    goButton = (Button)findViewById(R.id.button1);
-	    
+  
 	    locationSpinner = (Spinner)findViewById(R.id.locationSpinner);
 	    
 	    floorSpinner = (Spinner)findViewById(R.id.floorSpinner);
