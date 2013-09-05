@@ -849,6 +849,7 @@ public class MainActivity extends Activity implements OnTouchListener {
 
 		return;
 	}
+	
 	/**
 	 * Plots the adjusted/corrected predicted point correctly on the image. Takes into consideration the scaling
 	 * and positioning of the image. This method is only called when in debug mode.
