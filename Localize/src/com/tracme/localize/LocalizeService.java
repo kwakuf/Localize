@@ -4,7 +4,6 @@
 package com.tracme.localize;
 
 import com.tracme.util.*;
-import com.tracme.training.*;
 import android.app.Activity;
 import android.app.IntentService;
 import android.content.BroadcastReceiver;
@@ -170,11 +169,10 @@ public class LocalizeService extends IntentService {
 			try {
 				Thread.sleep(2000);
 			} catch (InterruptedException e1) {
-				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
 			
-			/*** TODO: End of that loooop ***/
+			/*** End of that loooop ***/
 			
 			//Obtain a message from the pool
 			Message msg = Message.obtain();
