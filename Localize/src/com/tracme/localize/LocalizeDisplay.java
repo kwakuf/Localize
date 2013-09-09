@@ -50,12 +50,12 @@ public class LocalizeDisplay {
      matrix.getValues(eventMatrix);
 	}
 
-	public void calcInitScale() {
+	public void calcInitScale(float dimX, float dimY) {
 		// Drawable drawable = getResources().getDrawable(R.drawable.cc_1);
 
 		/* The initial size of the image will have to predefined somewhere */
-		initScaleX = (float) drawable.getIntrinsicWidth() / 1293;
-		initScaleY = (float) drawable.getIntrinsicHeight() / 755;
+		initScaleX = (float) drawable.getIntrinsicWidth() / dimX;
+		initScaleY = (float) drawable.getIntrinsicHeight() / dimY;
 
 		// IMAGE is 1293x755 NOTE ALL SHOULD BE THE SAME SIZE
 		// NOTE: The xy spreadsheet is 1291 by 754 for some reason

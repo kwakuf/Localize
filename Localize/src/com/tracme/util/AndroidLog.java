@@ -5,24 +5,35 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStreamReader;
-import java.io.Serializable;
 
-import android.app.Activity;
-import android.content.Context;
 import android.os.Environment;
-import android.widget.Toast;
 
-public class AndroidLog implements Serializable {
+/**
+ * Class Representing and AndroidLog Object. The AndroidLog Object is a file
+ * that is stored in the android file system. 
+ * 
+ * @author Kwaku Farkye
+ * @author Ken Ugo
+ *
+ */
+public class AndroidLog {
   
-  /**
-	 * 
-	 */
-  private static final long serialVersionUID = -2387572693888686831L;
+  /** File that will be accessed */
   public File file;
+  
+  /** Path to the file */
   public File path;
+  
+  /** Input stream for predictions log */
   public FileInputStream inputStream;
   
+  /**
+   * Constructor for AndroidLog object. Initializes directory to store log in and the name of the file.
+   * 
+   * @param filename The name of the file being accessed.
+   */
   public AndroidLog(String filename) {
+	// Path is currently going to DOWNLOADS Directory
     path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);    
     file = new File(path, filename);
   }
@@ -41,6 +52,8 @@ public class AndroidLog implements Serializable {
   {
 	  path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);    
 	  file = new File(path, filename);
+	  
+	  // In the case of prediction, make another log file
 	  if (predict == true)
 	  {
 		  try {
@@ -53,6 +66,12 @@ public class AndroidLog implements Serializable {
 	  }
   }
   
+  /**
+   * Writes the data given to the file
+   * 
+   * @param data String of data to write to the file
+   * 
+   */
   public void save(String data)
   {
     try
@@ -70,6 +89,12 @@ public class AndroidLog implements Serializable {
     }
   }
 
+  /**
+   * Reads data from the file.
+   * 
+   * @return The data read from the file in string format
+   * 
+   */
   public String load()
   {
     try

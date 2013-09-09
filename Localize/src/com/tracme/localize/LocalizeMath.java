@@ -124,4 +124,58 @@ public class LocalizeMath {
 		
 		return weightedPrediction;
 	}
+	
+	/**
+	 * Takes all of the raw predictions and, based on how close the prediction is to the previous prediction,
+	 * computes a weighted average of all the predictions.
+	 * 
+	 * @param rawPredictions The list of original predictions
+	 * @param prevPrediction Previous prediction value used for computing euclidean distance. This prediction
+	 * 	value will be used as the initial reference point for finding the closest prediction
+	 * @param localizationLog Log File for debug information
+	 * @param debugMode Specifies whether we are in debug mode. If in debug mode, localizationLog will be written to.
+	 * 
+	 * @return A double array of the weighted average of raw predictions
+	 */
+	protected static double[] weightRawPredictions(ArrayList<Double[]> rawPredictions, double[] prevPrediction,
+			AndroidLog localizationLog, boolean debugMode)
+	{
+		
+		double[] resPredictions = new double[2];
+		double[] tmpPrediction = new double[2];
+		double thisWeight = 0; // Weight for the current prediction
+		double summedWeight = 0; // Sum of all the weights
+		double euclDistance = 0;
+		
+		if (debugMode)
+			localizationLog.save("--- Averaging The Predictions with Weight ---\n");
+		
+		for (int i = 0; i < rawPredictions.size(); i++)
+		{
+			
+			tmpPrediction[0] = rawPredictions.get(i)[0].doubleValue();
+			tmpPrediction[1] = rawPredictions.get(i)[1].doubleValue();
+		
+			if (debugMode)
+				localizationLog.save("Prediction " + i + ": " + tmpPrediction[0] + "," + tmpPrediction[1] + "\n");
+			
+			euclDistance = computeEuclidean(tmpPrediction, prevPrediction);
+			
+			thisWeight = Math.exp(-1 * euclDistance);
+			summedWeight += thisWeight;
+			
+			if (debugMode)
+				localizationLog.save("Weight for Prediction " + i + ": " + thisWeight + "\n");
+			
+			// Sum the new weighted predictions
+			resPredictions[0] = resPredictions[0] + (thisWeight * tmpPrediction[0]);
+			resPredictions[1] = resPredictions[1] + (thisWeight * tmpPrediction[1]);
+		}
+		
+		// Now normalize the weighted average
+		resPredictions[0] = resPredictions[0] / summedWeight;
+		resPredictions[1] = resPredictions[1] / summedWeight;
+		
+		return resPredictions;
+	}
 }
