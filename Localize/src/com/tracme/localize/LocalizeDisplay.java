@@ -1,5 +1,7 @@
 package com.tracme.localize;
 
+import com.tracme.localize.LocalizeDisplay;
+
 import android.graphics.Matrix;
 import android.graphics.PointF;
 import android.graphics.drawable.Drawable;
@@ -30,8 +32,9 @@ public class LocalizeDisplay {
 	public float d = 0f;
 	public float newRot = 0f;
 
-	float mCurrentScale = 1.0f;
-
+	// Radius of the tracking circle
+	public static final int radius = 25;
+	
 	// Points for zoom and rotate calculations
 	public PointF start = new PointF();
 	public PointF mid = new PointF();
@@ -113,9 +116,9 @@ public class LocalizeDisplay {
 			float r = newRot - d;
 			float[] values = new float[9];
 			matrix.getValues(values);
-			float tx = values[2];
-			float ty = values[5];
-			float sx = values[0];
+			float tx = values[Matrix.MTRANS_X];
+			float ty = values[Matrix.MTRANS_Y];
+			float sx = values[Matrix.MSCALE_X];
 			float xc = (view.getWidth() / 2) * sx;
 			float yc = (view.getHeight() / 2) * sx;
 			matrix.postRotate(r, tx + xc, ty + yc);
@@ -126,7 +129,7 @@ public class LocalizeDisplay {
 	 * Adjusts the x position on the image for scaling and dragging
 	 */
 	public float getAdjustedX(float x) {
-		return (x * initScaleX * eventMatrix[Matrix.MSCALE_X]) - 25
+		return (x * initScaleX * eventMatrix[Matrix.MSCALE_X]) - radius
 				+ eventMatrix[Matrix.MTRANS_X];
 	}
 
@@ -134,15 +137,22 @@ public class LocalizeDisplay {
 	 * Adjusts the y position on the image for scaling and dragging
 	 */
 	public float getAdjustedY(float y) {
-		return (y * initScaleY * eventMatrix[Matrix.MSCALE_Y]) - 25
+		return (y * initScaleY * eventMatrix[Matrix.MSCALE_Y]) - radius
 		+ eventMatrix[Matrix.MTRANS_Y];
 	}
 
+	/*
+	 * Returns the initial x and y scales in a point format
+	 */
 	public PointF getInitScale() {
 		PointF scale = new PointF(initScaleX, initScaleY);
 		return scale;
 	}
 
+	/*
+	 * Adjusts the background image to account for max/min zoom and ensures
+	 * that the image is never completely off screen
+	 */
 	public void checkEdgeCases(ImageView view) {
 		switch (mode) {
 		case LocalizeDisplay.DRAG:
@@ -180,17 +190,16 @@ public class LocalizeDisplay {
 		case LocalizeDisplay.ZOOM:
 			// Ensure minimum and maximum scales
 			view.getImageMatrix().getValues(eventMatrix);
-			if (eventMatrix[0] < 1) {
-				eventMatrix[0] = (float) 1.0;
-				eventMatrix[2] = 0;
+			if (eventMatrix[Matrix.MSCALE_X] < 1) {
+				eventMatrix[Matrix.MSCALE_X] = (float) 1.0;
+				eventMatrix[Matrix.MTRANS_X] = 0;
 			}
-			if (eventMatrix[4] < 1) {
-				eventMatrix[4] = (float) 1.0;
-				eventMatrix[5] = 0;
+			if (eventMatrix[Matrix.MSCALE_Y] < 1) {
+				eventMatrix[Matrix.MSCALE_Y] = (float) 1.0;
+				eventMatrix[Matrix.MTRANS_Y] = 0;
 			}
 			resMatrix.setValues(eventMatrix);
 			matrix = resMatrix;
-			System.out.println("AFTER: " + view.getImageMatrix().toString());
 			break;
 		}
 	}

@@ -556,6 +556,11 @@ public class MainActivity extends Activity implements OnTouchListener {
 		}
 	}
 
+	/**
+	 * Alert dialog menu
+	 * 
+	 * @author Ken Ugo
+	 */
 	public void showSeek() {
 		final TextView tvBetVal;
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -568,7 +573,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 				.setPositiveButton("Confirm", new DialogInterface.OnClickListener() {
 					@Override
 					public void onClick(DialogInterface dialog, int which) {
-						// confirmValues();
 						// SAVE THE PROGRESS BAR VALUE SOMEWHERE
 						thisApp.numScans = (numScansPending == 0) ? (1) : (numScansPending);
 						// Set the option for the next intent
@@ -587,13 +591,11 @@ public class MainActivity extends Activity implements OnTouchListener {
 			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
 				if (isChecked) {
 					// The toggle is enabled
-					System.out.println("This is the first choice");
 					// THIS IS THE POINT OPTION
 					tempMap = POINT;
 				}
 				else {
 					// The toggle is disabled
-					System.out.println("This is the second choice");
 					// THIS IS THE FOLLOW OPTION
 					tempMap = FOLLOW;
 				}
@@ -639,6 +641,11 @@ public class MainActivity extends Activity implements OnTouchListener {
 		stopService(localizeIntent);
 	}
 	
+	/**
+	 * Handles the touch events on the device
+	 * 
+	 * @author Ken Ugo
+	 */
 	public boolean onTouch(View v, MotionEvent event) {
 		DisplayMetrics metrics = new DisplayMetrics();
 		getWindowManager().getDefaultDisplay().getMetrics(metrics);
@@ -683,11 +690,13 @@ public class MainActivity extends Activity implements OnTouchListener {
 
 		ld.matrix.getValues(ld.eventMatrix);
 
+		// If animation is occurring, don't allow the image to be moved
 		if (!animDone) {
-			System.out.println("moving");
+			System.out.println("animating");
 			return true;
 		}
 		
+		//Specified in the settings
 		if (mapState == POINT) {
 			/* The point specified will be given by the localization function */
 			plotPoint(predObj.xCoord, predObj.yCoord);
@@ -705,9 +714,6 @@ public class MainActivity extends Activity implements OnTouchListener {
 			if (!predObj.withinRange)
 				plotErrPoint(predObj.errX, predObj.errY);
 		}
-		// Not sure why this is here
-		/*else
-			view.setImageMatrix(plotImage(predObj.xCoord, predObj.yCoord, ld.matrix));*/
 		
 		return true;
 	}
@@ -867,8 +873,10 @@ public class MainActivity extends Activity implements OnTouchListener {
 		return;
 	}
 	
-	/*
+	/**
 	 * Functions that animates the movement of marker from one point to the next
+	 * 
+	 * @author Ken Ugo
 	 */
 	private void movePoint(float x, float y) {
 
@@ -928,6 +936,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 	 * @param x
 	 * @param y
 	 * @param m
+	 * 
+	 * @author Ken Ugo
 	 */
 	private Matrix plotImage(float x, float y, Matrix m) {
 		float[] mtxArr = new float[9];
@@ -955,6 +965,8 @@ public class MainActivity extends Activity implements OnTouchListener {
 	
 	/**
 	 * Responsible for adding the trail in FOLLOW MODE
+	 * 
+	 * @author Ken Ugo
 	 */
 	private Matrix moveImage(float x, float y, Matrix m) {
 		PointF scale = ld.getInitScale();
