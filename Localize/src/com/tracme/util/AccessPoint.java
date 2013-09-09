@@ -8,8 +8,9 @@ import android.os.Parcelable;
 /**
  * Represents various information that can be obtained from a wireless access
  * point. The most relevant information for this project is the ID, BSSID, and
- * RSSI data. Please consult the source code for more information about what
- * each accessor/mutator methods represents.
+ * RSSI data. Each access point object represents one unique access point that
+ * holds all rssi values received from Sampling. Please consult the source code
+ * for more information about what each methods represents.
  * 
  * @author James Humphrey
  * @author Kwaku Farkye
@@ -17,17 +18,36 @@ import android.os.Parcelable;
 public class AccessPoint implements Parcelable
 {
 	
+	/**
+	 * Constructor for AccessPoint Object. Initializes total samples to 0.
+	 */
 	public AccessPoint()
 	{
 		this.totalSamples = 0;
 	}
 	
+	/**
+	 * Constructor for AccessPoint Object. Initializes total samples to 
+	 * parameter passed in as argument. Also initializes the ArrayList of RSSI
+	 * values.
+	 * 
+	 * @param totalSamples Total number of samples done for this (and all other)
+	 * access points.
+	 * 
+	 */
 	public AccessPoint(int totalSamples)
 	{
 		this.totalSamples = totalSamples;
 		initRSSIArray();
 	}
 
+	/**
+	 * Constructor for AccessPoint Object. The id and MAC ADDRESS/BSSID are initialized
+	 * to the information contained in the Parcel.
+	 * 
+	 * @param read Parcel containing information about this object.
+	 * 
+	 */
 	public AccessPoint(Parcel read)
 	{
 		this.id = read.readInt();
@@ -46,7 +66,7 @@ public class AccessPoint implements Parcelable
    }
 
    /**
-    * Accessor for the AP assigned ID value.
+    * Getter for the AP assigned ID value.
     * 
     * @return The ID value for this access point.
     */
@@ -67,7 +87,7 @@ public class AccessPoint implements Parcelable
    }
 
    /**
-    * Accessor for the AP assigned SSID.
+    * Getter for the AP assigned SSID.
     * 
     * @return
     */
@@ -88,7 +108,7 @@ public class AccessPoint implements Parcelable
    }
 
    /**
-    * Accessor for the AP assigned BSSID value.
+    * Getter for the AP assigned BSSID value.
     * 
     * @return The BSSID value for this access point
     */
@@ -109,6 +129,12 @@ public class AccessPoint implements Parcelable
 	   initRSSIArray();
    }
 
+   /**
+    * Initializes an array of integers, representing RSSIS for 
+    * this access point. The array is initialized to the total number of
+    * samples.
+    * 
+    */
    private void initRSSIArray()
    {
 	   this.rssiList = new int[totalSamples];
@@ -145,7 +171,7 @@ public class AccessPoint implements Parcelable
    }
    
    /**
-    * Accessor for the AP assigned RSSI value.
+    * Getter for the AP assigned RSSI value.
     * 
     * @return The most recent RSSI value for this access point
     */
@@ -158,7 +184,7 @@ public class AccessPoint implements Parcelable
     * Get the RSSI value at the specified index
     * 
     * @param index
-    * 	The index (aka sample number) that we want the RSSI value for
+    * 	The index (i.e, sample number) that we want the RSSI value for
     * 
     * @return
     * 	The RSSI value of the sample number
@@ -180,7 +206,7 @@ public class AccessPoint implements Parcelable
    }
 
    /**
-    * Accessor for the AP assigned channel value.
+    * Getter for the AP assigned channel value.
     * 
     * @return The channel value(s) for this access point
     */
@@ -201,7 +227,7 @@ public class AccessPoint implements Parcelable
    }
 
    /**
-    * Accessor for the AP assigned HT value.
+    * Getter for the AP assigned HT value.
     * 
     * @return The HT value for this access point
     */
@@ -222,7 +248,7 @@ public class AccessPoint implements Parcelable
    }
 
    /**
-    * Accessor for the AP assigned CC value.
+    * Getter for the AP assigned CC value.
     * 
     * @return The CC value for this access point
     */
@@ -243,7 +269,7 @@ public class AccessPoint implements Parcelable
    }
 
    /**
-    * Accessor for the AP assigned security value.
+    * Getter for the AP assigned security value.
     * 
     * @return The security value for this access point
     */
@@ -290,21 +316,46 @@ public class AccessPoint implements Parcelable
 	   dest.writeString(bssid);
    }
    
-   private int id = -1; // Unique id associated with each AP and can be looked up in table. (GETS Defaulted to 0 on mobile so I set this to -1 to make the code work)
-   private String ssid; // SSID (Service Set Identifier) is a string name of the AP.
-   private String bssid; // BSSID (Basic Service Set Identification) is an ideally unique number for each access point. We will use this value to identify the different APs.
-   private int rssi; // RSSI (Received Signal Strength Indication) is the signal measurement of power in dB.
-   private String channel; // The range of frequencies in use.
-   private boolean ht; // Indicates if this AP supports a home theater receiver.
-   private String cc; // CC (Country Code) can be used to identify the country the AP is located in.
-   private String security; // Indicates the type of security used by the AP and its (auth/unicast/group).
-   ///private coord loc; // Physical location of the AP.
+   /** Unique id associated with each AP and can be looked up in table.
+    *  (GETS Defaulted to 0 on mobile so I set this to -1 to make the code work)
+    */
+   private int id = -1;
+  
+   /** SSID (Service Set Identifier) is a string name of the AP. */
+   private String ssid;
    
-   //This access point's rssi values for each scan. The length of this list
-   //is the amount of coords in a sample set * number of samples per coordinate
+   /** 
+    * BSSID (Basic Service Set Identification) is an ideally unique number
+    * for each access point. We will use this value to identify the different APs.
+    * 
+    */
+   private String bssid;
+   
+   /**
+    * RSSI (Received Signal Strength Indication) is the signal measurement of power in dB.
+    */
+   private int rssi;
+   
+   /** The range of frequencies in use. */
+   private String channel;
+   
+   /** Indicates if this AP supports a home theater receiver. */
+   private boolean ht;
+   
+   /** CC (Country Code) can be used to identify the country the AP is located in. */
+   private String cc;
+   
+   /** Indicates the type of security used by the AP and its (auth/unicast/group). */
+   private String security;
+   
+   /**
+    * This access point's rssi values for each scan. The length of this list
+    * is the amount of coords in a sample set * number of samples per coordinate 
+    */
    private int[] rssiList;
    
-   private int totalSamples; //The total number of times this access point is sampled for
+   /** The total number of times this access point is sampled for */
+   private int totalSamples;
    
 }
 

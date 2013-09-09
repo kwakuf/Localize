@@ -4,7 +4,6 @@
 package com.tracme.localize;
 
 import com.tracme.util.*;
-import com.tracme.training.*;
 import android.app.Activity;
 import android.app.IntentService;
 import android.content.BroadcastReceiver;
@@ -28,43 +27,58 @@ import java.util.List;
  *
  */
 public class LocalizeService extends IntentService {
-	/* These are the keys that will be used for bundles
+	/** These are the keys that will be used for bundles
 	 *  passed between this service and the calling activity via the messenger
 	 */
 	public static final String MESSENGER_KEY = "MESSENGER";
+	
+	/** Key for getting the LocalizeOptions */
 	public static final String OPTIONS_KEY = "OPTIONS";
+	
+	/** Key for getting the APTable */
 	public static final String APTABLE_KEY = "APTABLE";
+	
+	/** Key for the array of rssi values */
 	public static final String SCANARRAY_KEY = "SCANARRAY";
+	
+	/** Key for the prediction count */
 	public static final String COUNT_KEY = "COUNT";
+	
+	/** Key for the time */
 	public static final String TIME_KEY = "TIME";
+	
+	/** Key for debug mode */
 	public static final String DEBUG_KEY = "DEBUG";
 	
+	/** The access point table used for localization */
 	private APTable apTable;
-	public LocalizeOptions options;
-	private Messenger messenger;
-	private int count;
 	
-	//public WifiManager myWifiManager;
-	//public WiFiScanReceiver myReceiver = null;
+	/** Localization options used for this prediction */
+	public LocalizeOptions options;
+	
+	/** Messenger for communicating with main thread */
+	private Messenger messenger;
+	
+	/** Receiver for receiving results of wifi scan */
 	private LocalizeBroadcastReceiver myReceiver;
+	
+	/** Wifi manager for scanning wifi adapter */
 	private WifiManager myWifiManager;
 	
-	double[] rssis; // Array of rssi values received from the scans
+	/** Array of rssi values received from the scans */
+	double[] rssis;
 	
-	double[] prediction = new double[2]; // Prediction of the corresponding point
+	/** Prediction of the corresponding point */
+	double[] prediction = new double[2];
 	
+	/** The start time for logging amount of time taken for scan */
 	private long startTime;
+	
+	/** The end time for logging amount of time taken for scan */
 	private long endTime;
 	
-	/* Flag specifying whether we are in debug mode */
+	/** Flag specifying whether we are in debug mode */
 	private boolean debugMode;
-	
-	/*** TODO: These fields should probably be passed to us by the activity in an object ***/
-	private String rawFile = "cc1_76_nexus.txt"; // Name of the rawfile
-	private String trainFile = "train_p0.0.txt_sub_1.0.1.txt"; // Name of the training file
-	private int nX = 100; // Number of classes in x dimension
-	private int nY = 100; // Number of classes in y dimension
-	/*** END ****/
 	
 	/**
 	 * Class for Receiving WiFi scan results from the WifiManager
@@ -105,12 +119,19 @@ public class LocalizeService extends IntentService {
 		super("LocalizeService");
 	}
 	
+	/**
+	 * Sets the rssi value for an access point's signal received from scan
+	 * 
+	 * @param apID ID of the access point
+	 * 
+	 * @param rssival Value of the signal received by this access point
+	 */
 	public void setRSSIArrayValue(int apID, int rssival)
 	{
 		// Since the access point IDs in the table start at 1, we must decrement the array id by 1
 		int arrayID = apID - 1;
 		
-		// Because we may average the scans, just keep adding the new rssi value to the value alreay there.
+		// Because we may average the scans, just keep adding the new rssi value to the value already there.
 		// If we end up only scanning once, then it wont even matter.
 		rssis[arrayID] += (double)rssival;
 		
@@ -136,11 +157,6 @@ public class LocalizeService extends IntentService {
 							
 			// Register the receiver so the wifi manager knows where to go once its done.
 			this.registerReceiver(myReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));	
-		
-			//while (true)
-			//{
-			//resetArray();
-			/***  TODO: Here is where we can loop multiple times in the case where the user wants more accuracy ****/ 
 			
 			// Test: Keep track of time it takes to scan and send message
 			if (debugMode)
@@ -153,11 +169,10 @@ public class LocalizeService extends IntentService {
 			try {
 				Thread.sleep(2000);
 			} catch (InterruptedException e1) {
-				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
 			
-			/*** TODO: End of that loooop ***/
+			/*** End of that loooop ***/
 			
 			//Obtain a message from the pool
 			Message msg = Message.obtain();
@@ -173,14 +188,12 @@ public class LocalizeService extends IntentService {
 				outData.putLong(LocalizeService.TIME_KEY, endTime - startTime);
 			
 			msg.setData(outData);
-			//msg.obj = outString;
 			try {
 				messenger.send(msg);
 			} catch (android.os.RemoteException e)
 			{
 				Log.w(getClass().getName(), "Exception sending message", e);
 			}
-			//}
 		}
 	}
 	
@@ -215,7 +228,6 @@ public class LocalizeService extends IntentService {
 			messenger = (Messenger)b.get(MESSENGER_KEY);
 			apTable = (APTable)b.getParcelable(APTABLE_KEY);
 			options = (LocalizeOptions)b.get(OPTIONS_KEY);
-			count = (int)b.getInt(COUNT_KEY);
 			debugMode = (boolean)b.getBoolean(DEBUG_KEY);
 
 			return true;
