@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.Scanner;
 import java.io.*;
 
-import com.tracme.localize.LocalizeOptions;
-
 import android.net.wifi.ScanResult;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -18,15 +16,22 @@ import android.os.Parcelable;
  * 
  * @author James Humphrey
  * @author Kwaku Farkye
+ * @author Ken Ugo
+ * 
  */
 public class APTable implements Parcelable
 {
 	
-   private ArrayList< AccessPoint > aps = new ArrayList<AccessPoint>(); // A list of APs stored in the table.
-   private String tableName; // The file name of the AP table that is loaded.
-   boolean writeDebugFile; // Indicates if we want to write another debug file which will include more information about the APs.
-   private boolean multiAttempts = false; //Flag to see if there were multiple attempts of loading the access point table.
+   /** A list of APs stored in the table. Pre-initialized */
+   private ArrayList< AccessPoint > aps = new ArrayList<AccessPoint>();
+   
+   /** Indicates if we want to write another debug file which will include more information about the APs. */
+   boolean writeDebugFile;
+   
+   /** The android log that stores the access point table information */
    private AndroidLog tableLog;
+   
+   /** The android log that stores the access point table information */
    private AndroidLog tableLog_debug;
    
    /**
@@ -35,15 +40,18 @@ public class APTable implements Parcelable
    public APTable( String tableName )
    {
       // Create and initialize the AP table to 0.
-      //aps = new ArrayList< AccessPoint >();
       aps.clear();
 
       tableLog = new AndroidLog(tableName);
       tableLog_debug = new AndroidLog(tableName + "_debug.txt");
    }
    
+   /**
+    * Creates an empty APTable object and initializes fields to values stored in Parcel
+    * 
+    * @param in Parcel that will be read from to initialize fields
+    */
    public APTable(Parcel in) {
-	   //TODO: Write a readFromParcel method
 	   in.readTypedList(aps, AccessPoint.CREATOR);
    }
 
@@ -57,7 +65,6 @@ public class APTable implements Parcelable
    {
       // Get the ID number of the last entry in the table (should be the highest value).
       int topID = 0;
-      ;
 
       // The first AP added should always begin with a value of 1.
       if( aps.size() > 0 )
@@ -238,7 +245,7 @@ public class APTable implements Parcelable
    }
    
    /**
-    * Accessor method for the list of access points loaded in from the table.
+    * Getter method for the list of access points loaded in from the table.
     * 
     * @return The array list of known access points.
     */
@@ -261,6 +268,12 @@ public class APTable implements Parcelable
       return tableStr;
    }
    
+   /**
+    * Get the APTable array list
+    *  
+    * @return Array List of Access points stored in this APTable object
+    * 
+    */
    public ArrayList< AccessPoint > getAPs()
    {
 	   return aps;
@@ -268,13 +281,12 @@ public class APTable implements Parcelable
 
    @Override
    public int describeContents() {
-	   // TODO Auto-generated method stub
 	   return 0;
    }
-
+   
    @Override
    public void writeToParcel(Parcel dest, int flags) {
-	   // TODO Auto-generated method stub
+	   // REMEMBER: The order you write to the Parcel is the same order it must be read
 	   dest.writeTypedList(aps);
    }
    
